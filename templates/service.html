@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Service Functions</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            margin: 2em;
+        }
+    </style>
+</head>
+<body>
+    <h1>Service Functions</h1>
+    <p>This page is for administrative and service tasks.</p>
+    <hr>
+    <h2>Thumbnail Regeneration</h2>
+    <p>Regenerate all WebP thumbnails from the original images. This can take a while.</p>
+    <button id="regenerateBtn">Start Regeneration</button>
+    <div id="progressContainer" style="display: none; margin-top: 1em;">
+        <p id="progressStatus"></p>
+        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
+    </div>
+    <hr>
+    <h2>Preview Regeneration</h2>
+    <p>Regenerate all JPEG previews from the original images. This can take a while.</p>
+    <button id="regeneratePreviewsBtn">Start Regeneration</button>
+    <div id="previewsProgressContainer" style="display: none; margin-top: 1em;">
+        <p id="previewsProgressStatus"></p>
+        <progress id="previewsProgressBar" value="0" max="100" style="width: 100%;"></progress>
+    </div>
+
+    <p><a href="/content">Back to Content</a> | <a href="/logout">Logout</a></p>
+
+    <script>
+        // --- Thumbnail Regeneration ---
+        const regenerateBtn = document.getElementById('regenerateBtn');
+        const progressContainer = document.getElementById('progressContainer');
+        const progressBar = document.getElementById('progressBar');
+        const progressStatus = document.getElementById('progressStatus');
+
+        let pollingInterval;
+
+        function pollStatus(taskId, elements) {
+            fetch(`/service/regenerate-thumbnails/status?id=${taskId}`) // Generic status endpoint works for both
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        elements.status.textContent = `Error: ${data.error}`;
+                        clearInterval(pollingInterval);
+                        elements.button.disabled = false;
+                        return;
+                    }
+
+                    const percent = data.total > 0 ? (data.processed / data.total) * 100 : 0;
+                    elements.bar.value = percent;
+                    elements.status.textContent = `Processing (${data.processed}/${data.total}): ${data.filename}`;
+
+                    if (data.complete) {
+                        clearInterval(pollingInterval);
+                        elements.status.textContent = `Regeneration complete! Processed ${data.total} photos.`;
+                        elements.bar.value = 100;
+                        elements.button.disabled = false;
+                    }
+                })
+                .catch(err => {
+                    console.error("Polling error:", err);
+                    clearInterval(pollingInterval);
+                    elements.status.textContent = 'Error checking status.';
+                    elements.button.disabled = false;
+                });
+        }
+
+        regenerateBtn.addEventListener('click', () => {
+            if (!confirm('This process can take a long time. Are you sure you want to continue?')) {
+                return;
+            }
+
+            regenerateBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            progressStatus.textContent = 'Starting regeneration...';
+            progressBar.value = 0;
+
+            fetch('/service/regenerate-thumbnails/start')
+                .then(response => response.json())
+                .then(data => {
+                    const elements = { button: regenerateBtn, container: progressContainer, bar: progressBar, status: progressStatus };
+                    if (data.task_id) {
+                        pollingInterval = setInterval(() => pollStatus(data.task_id, elements), 1500);
+                    }
+                });
+        });
+
+        // --- Preview Regeneration ---
+        const regeneratePreviewsBtn = document.getElementById('regeneratePreviewsBtn');
+        const previewsProgressContainer = document.getElementById('previewsProgressContainer');
+        const previewsProgressBar = document.getElementById('previewsProgressBar');
+        const previewsProgressStatus = document.getElementById('previewsProgressStatus');
+
+        let previewsPollingInterval;
+
+        regeneratePreviewsBtn.addEventListener('click', () => {
+            if (!confirm('This process can take a long time. Are you sure you want to continue?')) {
+                return;
+            }
+
+            regeneratePreviewsBtn.disabled = true;
+            previewsProgressContainer.style.display = 'block';
+            previewsProgressStatus.textContent = 'Starting regeneration...';
+            previewsProgressBar.value = 0;
+
+            fetch('/service/regenerate-previews/start')
+                .then(response => response.json())
+                .then(data => {
+                    const elements = { button: regeneratePreviewsBtn, container: previewsProgressContainer, bar: previewsProgressBar, status: previewsProgressStatus };
+                    if (data.task_id) {
+                        previewsPollingInterval = setInterval(() => pollStatus(data.task_id, elements), 1500);
+                    }
+                });
+        });
+    </script>
+</body>
+</html>

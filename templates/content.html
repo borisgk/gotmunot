@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Content</title>
+	<style>
+		body {
+			font-family: sans-serif;
+			margin: 2em;
+		}
+		.photo-gallery {
+			display: flex;
+			flex-wrap: wrap;
+			justify-content: space-between; /* Distribute items evenly */
+			gap: 2px;
+		}
+		.photo-gallery img {
+			height: 250px; /* Made thumbnails bigger */
+			width: 100%;   /* Image fills its container */
+			display: block;
+			object-fit: cover; /* Ensures image covers the area, cropping to fit */
+		}
+		.photo-item {
+			flex-grow: 1; /* Allows items to grow and fill the row */
+			position: relative; /* For potential future overlays */
+		}
+		.photo-item p {
+			margin: 5px 0 0 0;
+			font-size: 0.8em;
+		}
+        .photo-gallery::after {
+            content: "";
+            flex-grow: 10; /* Large grow factor to push items to the left */
+        }
+	</style>
+</head>
+<body>
+	<h1>Content</h1>
+	<p>Welcome to the secure area, {{.Username}}!</p>
+
+	<p><a href="/upload-page">Upload Photos</a> | <a href="/service">Service</a></p>
+
+	<p><a href="/logout">Logout</a></p>
+
+	<hr>
+	<h2>Recent Uploads</h2>
+	{{if .Photos}}
+		<div class="photo-gallery">
+			{{range .Photos}}
+				<div class="photo-item">
+					<a href="/media/{{.Filepath | toPreviewPath}}" target="_blank">
+						<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
+					</a>
+				</div>
+			{{end}}
+		</div>
+	{{else}}
+		<p>No photos have been uploaded yet.</p>
+	{{end}}
+</body>
+</html>
