@@ -31,6 +31,44 @@
             content: "";
             flex-grow: 10; /* Large grow factor to push items to the left */
         }
+
+		/* Lightbox Modal Styles */
+		.modal {
+			display: none; /* Hidden by default */
+			position: fixed; /* Stay in place */
+			z-index: 1000; /* Sit on top */
+			padding-top: 60px; /* Location of the box */
+			left: 0;
+			top: 0;
+			width: 100%; /* Full width */
+			height: 100%; /* Full height */
+			overflow: auto; /* Enable scroll if needed */
+			background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
+		}
+
+		.modal-content {
+			margin: auto;
+			display: block;
+			max-width: 90%;
+			max-height: 90vh;
+		}
+
+		.close {
+			position: absolute;
+			top: 15px;
+			right: 35px;
+			color: #f1f1f1;
+			font-size: 40px;
+			font-weight: bold;
+			transition: 0.3s;
+		}
+
+		.close:hover,
+		.close:focus {
+			color: #bbb;
+			text-decoration: none;
+			cursor: pointer;
+		}
 	</style>
 </head>
 <body>
@@ -46,15 +84,53 @@
 	{{if .Photos}}
 		<div class="photo-gallery">
 			{{range .Photos}}
-				<div class="photo-item">
-					<a href="/media/{{.Filepath | toPreviewPath}}" target="_blank">
-						<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
-					</a>
-				</div>
+			<div class="photo-item">
+				<!-- Changed the link to be a data attribute for JS, and removed target="_blank" -->
+				<a href="#" data-preview="/media/{{.Filepath | toPreviewPath}}">
+					<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
+				</a>
+			</div>
 			{{end}}
 		</div>
 	{{else}}
 		<p>No photos have been uploaded yet.</p>
 	{{end}}
+
+	<!-- The Lightbox Modal -->
+	<div id="lightbox" class="modal">
+		<span class="close">&times;</span>
+		<img class="modal-content" id="lightbox-img">
+	</div>
+
+	<script>
+		// Get the modal
+		const lightbox = document.getElementById("lightbox");
+		const lightboxImg = document.getElementById("lightbox-img");
+		const closeBtn = document.getElementsByClassName("close")[0];
+
+		// Get all photo links
+		const photoLinks = document.querySelectorAll('.photo-gallery a');
+
+		// Add click listener to each photo link
+		photoLinks.forEach(link => {
+			link.addEventListener('click', function(e) {
+				e.preventDefault(); // Prevent default link behavior
+				lightbox.style.display = "block";
+				lightboxImg.src = this.dataset.preview;
+			});
+		});
+
+		// When the user clicks on <span> (x), close the modal
+		closeBtn.onclick = function() {
+			lightbox.style.display = "none";
+		}
+
+		// When the user clicks anywhere on the modal background, close it
+		lightbox.onclick = function(event) {
+			if (event.target === lightbox) {
+				lightbox.style.display = "none";
+			}
+		}
+	</script>
 </body>
 </html>
