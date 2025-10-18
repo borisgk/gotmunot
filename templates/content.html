@@ -37,7 +37,7 @@
 			display: none; /* Hidden by default */
 			position: fixed; /* Stay in place */
 			z-index: 1000; /* Sit on top */
-			padding-top: 60px; /* Location of the box */
+			padding: 0; /* Remove padding to allow full screen */
 			left: 0;
 			top: 0;
 			width: 100%; /* Full width */
@@ -49,14 +49,16 @@
 		.modal-content {
 			margin: auto;
 			display: block;
-			max-width: 90%;
-			max-height: 90vh;
+			width: 100vw; /* Full viewport width */
+			height: 100vh; /* Full viewport height */
+			object-fit: contain; /* Fit image within viewport, preserving aspect ratio */
 		}
 
 		.close {
 			position: absolute;
-			top: 15px;
-			right: 35px;
+			top: 20px;
+			right: 45px;
+			z-index: 1001; /* Ensure it's above the image */
 			color: #f1f1f1;
 			font-size: 40px;
 			font-weight: bold;
