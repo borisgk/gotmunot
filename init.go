@@ -22,6 +22,9 @@ const photoUploadDir = "/data/tmunot"
 const thumbsDir = "/data/tmunot/thumbs"
 const previewsDir = "/data/tmunot/previews"
 
+// dataDir defines the directory for database files.
+const dataDir = "data"
+
 func init() {
 	fmt.Println("Initializing TM25...")
 
@@ -69,9 +72,18 @@ func init() {
 		}
 	}
 
+	// Ensure the "data" directory for databases exists.
+	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
+		fmt.Printf("Creating '%s' directory...\n", dataDir)
+		if err := os.Mkdir(dataDir, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", dataDir, err)
+		}
+	}
+
 	// Initialize the database connection.
 	var err error
-	db, err = sql.Open("sqlite", "./users.db")
+	dbPath := filepath.Join(dataDir, "users.db")
+	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}

@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"log"
+	"path/filepath"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -62,7 +63,8 @@ type PhotoMetadata struct {
 // initPhotosDB initializes the photos database.
 func initPhotosDB() {
 	var err error
-	photosDB, err = sql.Open("sqlite", "./photos.db")
+	dbPath := filepath.Join(dataDir, "photos.db")
+	photosDB, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening photos database: %v", err)
 	}
