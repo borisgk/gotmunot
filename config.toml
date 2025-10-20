@@ -1,0 +1,4 @@
+photo_upload_dir = "/data/tmunot"
+thumbs_dir = "/data/tmunot/thumbs"
+previews_dir = "/data/tmunot/previews"
+data_dir = "data"

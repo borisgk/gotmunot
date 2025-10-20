@@ -63,7 +63,7 @@ type PhotoMetadata struct {
 // initPhotosDB initializes the photos database.
 func initPhotosDB() {
 	var err error
-	dbPath := filepath.Join(dataDir, "photos.db")
+	dbPath := filepath.Join(AppConfig.DataDir, "photos.db")
 	photosDB, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening photos database: %v", err)
@@ -183,6 +183,41 @@ func getRecentPhotos() ([]PhotoMetadata, error) {
 	}
 
 	return photos, rows.Err()
+}
+
+// getPhotoByFilename retrieves all metadata for a single photo by its filename.
+func getPhotoByFilename(filename string) (PhotoMetadata, error) {
+	var p PhotoMetadata
+	row := photosDB.QueryRow(`
+        SELECT 
+            id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at, 
+            make, model, image_description, image_width, image_length, x_resolution, y_resolution, 
+            resolution_unit, orientation, software, date_time, artist, copyright, 
+            exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value, 
+            aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash, 
+            focal_length, focal_length_in_35mm_film, lens_make, lens_model, 
+            date_time_original, date_time_digitized, subsec_time, 
+            gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+        FROM photos
+        WHERE filename = ?
+    `, filename)
+
+	err := row.Scan(
+		&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
+		&p.Make, &p.Model, &p.ImageDescription, &p.ImageWidth, &p.ImageLength, &p.XResolution, &p.YResolution,
+		&p.ResolutionUnit, &p.Orientation, &p.Software, &p.DateTime, &p.Artist, &p.Copyright,
+		&p.ExposureTime, &p.ExposureProgram, &p.FNumber, &p.ISOSpeedRatings, &p.ShutterSpeedValue,
+		&p.ApertureValue, &p.ExposureBiasValue, &p.MaxApertureValue, &p.MeteringMode, &p.LightSource, &p.Flash,
+		&p.FocalLength, &p.FocalLengthIn35mmFilm, &p.LensMake, &p.LensModel,
+		&p.DateTimeOriginal, &p.DateTimeDigitized, &p.SubSecTime,
+		&p.GPSLat, &p.GPSLon, &p.GPSAltitude, &p.GPSTimeStamp, &p.GPSSpeed, &p.GPSImgDirection,
+	)
+
+	if err != nil {
+		return p, err
+	}
+
+	return p, nil
 }
 
 // getAllPhotos retrieves the filepath and filename for all photos in the database.

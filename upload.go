@@ -130,7 +130,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
 
 	// Get the relative path to store in the database.
-	relativePath, err := filepath.Rel(photoUploadDir, newFilePath)
+	relativePath, err := filepath.Rel(AppConfig.PhotoUploadDir, newFilePath)
 	if err != nil {
 		// This should not happen if paths are constructed correctly, but good to handle.
 		log.Printf("Error creating relative path for %s: %v", newFilePath, err)
@@ -221,7 +221,7 @@ func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Ti
 	day := photoDate.Format("02")
 
 	// Construct the target directory path: /data/tmunot/YEAR/MONTH/DAY
-	targetDir := filepath.Join(photoUploadDir, year, month, day)
+	targetDir := filepath.Join(AppConfig.PhotoUploadDir, year, month, day)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", "", fmt.Errorf("failed to create upload directory: %w", err)
 	}
@@ -262,12 +262,12 @@ func createThumbnail(originalPath string) error {
 
 	// Determine the path for the thumbnail.
 	// It will be /data/tmunot/thumbs/YEAR/MONTH/DAY/original-filename.webp
-	relPath, err := filepath.Rel(photoUploadDir, originalPath)
+	relPath, err := filepath.Rel(AppConfig.PhotoUploadDir, originalPath)
 	if err != nil {
 		return fmt.Errorf("could not determine relative path for thumbnail: %w", err)
 	}
 
-	thumbDir := filepath.Join(thumbsDir, filepath.Dir(relPath))
+	thumbDir := filepath.Join(AppConfig.ThumbsDir, filepath.Dir(relPath))
 	if err := os.MkdirAll(thumbDir, 0755); err != nil {
 		return fmt.Errorf("failed to create thumbnail directory: %w", err)
 	}
@@ -306,12 +306,12 @@ func createPreview(originalPath string) error {
 
 	// Determine the path for the preview.
 	// It will be /data/tmunot/previews/YEAR/MONTH/DAY/original-filename.jpg
-	relPath, err := filepath.Rel(photoUploadDir, originalPath)
+	relPath, err := filepath.Rel(AppConfig.PhotoUploadDir, originalPath)
 	if err != nil {
 		return fmt.Errorf("could not determine relative path for preview: %w", err)
 	}
 
-	previewDir := filepath.Join(previewsDir, filepath.Dir(relPath))
+	previewDir := filepath.Join(AppConfig.PreviewsDir, filepath.Dir(relPath))
 	if err := os.MkdirAll(previewDir, 0755); err != nil {
 		return fmt.Errorf("failed to create preview directory: %w", err)
 	}

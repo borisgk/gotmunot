@@ -62,6 +62,8 @@ func main() {
 	http.HandleFunc("/service", servicePageHandler)
 	// Handlers for polling-based thumbnail regeneration
 	http.HandleFunc("/service/regenerate-thumbnails/start", startRegenerateThumbnailsHandler)
+	// Handler for photo info
+	http.HandleFunc("/photo/info/", photoInfoHandler)
 	http.HandleFunc("/service/regenerate-thumbnails/status", getRegenerateThumbnailsStatusHandler)
 	// Handlers for polling-based preview regeneration
 	http.HandleFunc("/service/regenerate-previews/start", startRegeneratePreviewsHandler)
@@ -72,7 +74,7 @@ func main() {
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
 	// Serve uploaded photos from the photoUploadDir.
-	mediaFS := http.FileServer(http.Dir(photoUploadDir))
+	mediaFS := http.FileServer(http.Dir(AppConfig.PhotoUploadDir))
 	http.Handle("/media/", http.StripPrefix("/media/", mediaFS))
 
 	// Serve thumbnails securely through a custom handler.
@@ -106,7 +108,7 @@ func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Construct the full, absolute path to the file on the filesystem.
-	fullPath := filepath.Join(thumbsDir, requestedFile)
+	fullPath := filepath.Join(AppConfig.ThumbsDir, requestedFile)
 
 	// Serve the file. http.ServeFile handles Content-Type, caching headers, etc.
 	http.ServeFile(w, r, fullPath)
@@ -129,7 +131,7 @@ func previewHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Construct the full, absolute path to the file on the filesystem.
-	fullPath := filepath.Join(previewsDir, requestedFile)
+	fullPath := filepath.Join(AppConfig.PreviewsDir, requestedFile)
 
 	// Serve the file.
 	http.ServeFile(w, r, fullPath)
@@ -237,6 +239,37 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
+	// First, verify the user has a valid session.
+	if _, ok := isValidSession(db, r); !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get the requested filename from the URL path.
+	// e.g., /photo/info/1698512345-my-photo.jpg -> 1698512345-my-photo.jpg
+	filename := strings.TrimPrefix(r.URL.Path, "/photo/info/")
+	if filename == "" {
+		http.Error(w, "Missing filename", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve photo metadata from the database.
+	photoData, err := getPhotoByFilename(filename)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Photo not found", http.StatusNotFound)
+		} else {
+			log.Printf("Error getting photo info for %s: %v", filename, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(photoData)
+}
+
 func servicePageHandler(w http.ResponseWriter, r *http.Request) {
 	username, ok := isValidSession(db, r)
 	if !ok {
@@ -284,7 +317,7 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(photoUploadDir, photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
@@ -366,7 +399,7 @@ func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(photoUploadDir, photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)

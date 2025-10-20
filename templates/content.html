@@ -5,7 +5,8 @@
 	<style>
 		body {
 			font-family: sans-serif;
-			margin: 2em;
+			margin: 0;
+			padding-top: 60px; /* Add padding to body to avoid content being hidden by fixed nav */
 		}
 		.photo-gallery {
 			display: flex;
@@ -71,26 +72,133 @@
 			text-decoration: none;
 			cursor: pointer;
 		}
+
+		/* Info Modal Styles */
+		.info-modal {
+			display: none; /* Hidden by default */
+			position: fixed;
+			z-index: 1002; /* Higher than lightbox */
+			left: 0;
+			top: 0;
+			width: 100%;
+			height: 100%;
+			overflow: auto;
+			background-color: rgba(0,0,0,0.6);
+		}
+		.info-modal-content {
+			background-color: #fefefe;
+			margin: 10% auto;
+			padding: 20px;
+			border: 1px solid #888;
+			width: 80%;
+			max-width: 600px;
+			border-radius: 8px;
+			position: relative;
+		}
+		.info-modal-content h3 {
+			margin-top: 0;
+		}
+		.info-modal-content table {
+			width: 100%;
+			border-collapse: collapse;
+		}
+		.info-modal-content td {
+			padding: 4px 8px;
+			border-bottom: 1px solid #ddd;
+		}
+
+		/* Navigation Bar Styles */
+		.top-nav {
+			background-color: #333;
+			overflow: hidden;
+			position: fixed; /* Fix it to the top */
+			top: 0;
+			width: 100%;
+			z-index: 999;
+		}
+		.top-nav a {
+			float: left;
+			color: #f2f2f2;
+			text-align: center;
+			padding: 14px 16px;
+			text-decoration: none;
+			font-size: 17px;
+		}
+		.top-nav a:hover {
+			background-color: #ddd;
+			color: black;
+		}
+		.top-nav-right {
+			float: right;
+		}
+
+		/* Dropdown Menu Styles */
+		.photo-menu-btn {
+			position: absolute;
+			top: 5px;
+			right: 5px;
+			background-color: rgba(0, 0, 0, 0.5);
+			color: white;
+			border: none;
+			border-radius: 50%;
+			cursor: pointer;
+			font-size: 18px;
+			line-height: 24px;
+			width: 24px;
+			height: 24px;
+			padding: 0;
+			z-index: 10;
+		}
+		.photo-menu-btn:hover {
+			background-color: rgba(0, 0, 0, 0.8);
+		}
+		.dropdown-content {
+			display: none;
+			position: absolute;
+			top: 30px;
+			right: 5px;
+			background-color: #f1f1f1;
+			min-width: 100px;
+			box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+			z-index: 11;
+			border-radius: 4px;
+		}
+		.dropdown-content a {
+			color: black;
+			padding: 12px 16px;
+			text-decoration: none;
+			display: block;
+		}
+		.dropdown-content a:hover {
+			background-color: #ddd;
+		}
+		.show {display:block;}
+
 	</style>
 </head>
 <body>
-	<h1>Content</h1>
-	<p>Welcome to the secure area, {{.Username}}!</p>
+	<div class="top-nav">
+		<a href="/content">Gallery</a>
+		<a href="/upload-page">Upload</a>
+		<a href="/service">Service</a>
+		<div class="top-nav-right">
+			<a href="/logout">Logout ({{.Username}})</a>
+		</div>
+	</div>
 
-	<p><a href="/upload-page">Upload Photos</a> | <a href="/service">Service</a></p>
-
-	<p><a href="/logout">Logout</a></p>
-
-	<hr>
-	<h2>Recent Uploads</h2>
+	<h2 style="padding-left: 1em;">Recent Uploads</h2>
 	{{if .Photos}}
 		<div class="photo-gallery">
 			{{range .Photos}}
 			<div class="photo-item">
-				<!-- Changed the link to be a data attribute for JS, and removed target="_blank" -->
-				<a href="#" data-preview="/media/{{.Filepath | toPreviewPath}}">
+				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath}}">
 					<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
 				</a>
+				<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
+				<div class="dropdown-content">
+					<a href="#" class="info-btn">Info</a>
+					<a href="#" class="delete-btn">Delete</a>
+				</div>
 			</div>
 			{{end}}
 		</div>
@@ -104,6 +212,13 @@
 		<img class="modal-content" id="lightbox-img">
 	</div>
 
+	<!-- The Info Modal -->
+	<div id="info-modal" class="info-modal">
+		<div class="info-modal-content">
+			<span class="close">&times;</span>
+			<div id="info-modal-body"></div>
+		</div>
+	</div>
 	<script>
 		// Get the modal
 		const lightbox = document.getElementById("lightbox");
@@ -111,10 +226,10 @@
 		const closeBtn = document.getElementsByClassName("close")[0];
 
 		// Get all photo links
-		const photoLinks = document.querySelectorAll('.photo-gallery a');
+		const photoLinks = document.querySelectorAll('.lightbox-trigger');
 
 		// Add click listener to each photo link
-		photoLinks.forEach(link => {
+		document.querySelectorAll('.lightbox-trigger').forEach(link => {
 			link.addEventListener('click', function(e) {
 				e.preventDefault(); // Prevent default link behavior
 				lightbox.style.display = "block";
@@ -133,6 +248,101 @@
 				lightbox.style.display = "none";
 			}
 		}
+
+		/* Info Modal Logic */
+		const infoModal = document.getElementById("info-modal");
+		const infoModalBody = document.getElementById("info-modal-body");
+		const infoModalCloseBtn = infoModal.querySelector(".close");
+
+		infoModalCloseBtn.onclick = function() {
+			infoModal.style.display = "none";
+		}
+		window.onclick = function(event) {
+			if (event.target == infoModal) {
+				infoModal.style.display = "none";
+			}
+		}
+
+		/* Dropdown Menu Logic */
+		document.addEventListener('click', function(event) {
+			// Close all open dropdowns unless a menu button is clicked
+			if (!event.target.matches('.photo-menu-btn')) {
+				let dropdowns = document.getElementsByClassName("dropdown-content");
+				for (let i = 0; i < dropdowns.length; i++) {
+					let openDropdown = dropdowns[i];
+					if (openDropdown.classList.contains('show')) {
+						openDropdown.classList.remove('show');
+					}
+				}
+			}
+
+			// Handle menu button clicks
+			if (event.target.matches('.photo-menu-btn')) {
+				event.preventDefault();
+				// Find the dropdown content relative to the button
+				const dropdown = event.target.nextElementSibling;
+				dropdown.classList.toggle('show');
+			}
+
+			// Handle "Info" button clicks
+			if (event.target.matches('.info-btn')) {
+				event.preventDefault();
+				const filename = event.target.closest('.photo-item').querySelector('.photo-menu-btn').dataset.filename;
+				
+				fetch(`/photo/info/${filename}`)
+					.then(response => {
+						if (!response.ok) {
+							throw new Error(`HTTP error! status: ${response.status}`);
+						}
+						return response.json();
+					})
+					.then(data => {
+						let content = `<h3>${data.Filename}</h3>`;
+						content += '<table>';
+						
+						// Helper to add a row if the value is valid
+						const addRow = (label, value) => {
+							if (value && value.Valid) { // Check for uppercase 'Valid'
+								let displayValue = value.String || value.Int64 || value.Float64; // Check for uppercase properties
+								if (value.Time) displayValue = new Date(value.Time).toLocaleString(); // Check for uppercase 'Time'
+								content += `<tr><td><strong>${label}</strong></td><td>${displayValue}</td></tr>`;
+							}
+						};
+
+						addRow('Date Taken', data.DateTimeOriginal);
+						addRow('Dimensions', { Valid: data.ImageWidth.Valid, String: `${data.ImageWidth.Int64} x ${data.ImageLength.Int64}` }); // This custom object is fine
+						addRow('Camera Make', data.Make);
+						addRow('Camera Model', data.Model);
+						addRow('Lens Model', data.LensModel);
+						addRow('F-Number', data.FNumber);
+						addRow('Exposure Time', data.ExposureTime);
+						addRow('ISO', data.ISOSpeedRatings);
+						addRow('Focal Length', { Valid: data.FocalLength.Valid, String: `${data.FocalLength.Float64}mm` }); // This custom object is fine
+
+						content += '</table>';
+						infoModalBody.innerHTML = content;
+						infoModal.style.display = "block";
+					})
+					.catch(error => {
+						console.error('Error fetching photo info:', error);
+						alert('Could not load photo information.');
+					});
+			}
+
+			// Handle "Delete" button clicks
+			if (event.target.matches('.delete-btn')) {
+				event.preventDefault();
+				const photoItem = event.target.closest('.photo-item');
+				const filename = photoItem.querySelector('.photo-menu-btn').dataset.filename;
+				
+				if (confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) {
+					// Placeholder for actual delete logic
+					alert(`Deletion for "${filename}" has been requested.\n(Backend endpoint not yet implemented.)`);
+					// Example of how you would remove it from the view:
+					// photoItem.remove(); 
+				}
+			}
+		});
 	</script>
 </body>
 </html>

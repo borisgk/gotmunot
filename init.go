@@ -15,18 +15,11 @@ import (
 var db *sql.DB
 var tmpl *template.Template
 
-// photoUploadDir defines the directory where uploaded photos are stored.
-const photoUploadDir = "/data/tmunot"
-
-// Constants for subdirectories.
-const thumbsDir = "/data/tmunot/thumbs"
-const previewsDir = "/data/tmunot/previews"
-
-// dataDir defines the directory for database files.
-const dataDir = "data"
-
 func init() {
 	fmt.Println("Initializing TM25...")
+
+	// Load application configuration
+	LoadConfig()
 
 	// Ensure the "static" directory exists.
 	if _, err := os.Stat("static"); os.IsNotExist(err) {
@@ -43,24 +36,24 @@ func init() {
 		}
 	}
 	// Create the photo upload directory if it doesn't exist.
-	if _, err := os.Stat(photoUploadDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", photoUploadDir)
-		if err := os.MkdirAll(photoUploadDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", photoUploadDir, err)
+	if _, err := os.Stat(AppConfig.PhotoUploadDir); os.IsNotExist(err) {
+		fmt.Printf("Creating '%s' directory...\n", AppConfig.PhotoUploadDir)
+		if err := os.MkdirAll(AppConfig.PhotoUploadDir, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PhotoUploadDir, err)
 		}
 	}
 	// Create the thumbnail directory if it doesn't exist.
-	if _, err := os.Stat(thumbsDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", thumbsDir)
-		if err := os.MkdirAll(thumbsDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", thumbsDir, err)
+	if _, err := os.Stat(AppConfig.ThumbsDir); os.IsNotExist(err) {
+		fmt.Printf("Creating '%s' directory...\n", AppConfig.ThumbsDir)
+		if err := os.MkdirAll(AppConfig.ThumbsDir, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", AppConfig.ThumbsDir, err)
 		}
 	}
 	// Create the preview directory if it doesn't exist.
-	if _, err := os.Stat(previewsDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", previewsDir)
-		if err := os.MkdirAll(previewsDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", previewsDir, err)
+	if _, err := os.Stat(AppConfig.PreviewsDir); os.IsNotExist(err) {
+		fmt.Printf("Creating '%s' directory...\n", AppConfig.PreviewsDir)
+		if err := os.MkdirAll(AppConfig.PreviewsDir, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PreviewsDir, err)
 		}
 	}
 
@@ -73,16 +66,16 @@ func init() {
 	}
 
 	// Ensure the "data" directory for databases exists.
-	if _, err := os.Stat(dataDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", dataDir)
-		if err := os.Mkdir(dataDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", dataDir, err)
+	if _, err := os.Stat(AppConfig.DataDir); os.IsNotExist(err) {
+		fmt.Printf("Creating '%s' directory...\n", AppConfig.DataDir)
+		if err := os.Mkdir(AppConfig.DataDir, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", AppConfig.DataDir, err)
 		}
 	}
 
 	// Initialize the database connection.
 	var err error
-	dbPath := filepath.Join(dataDir, "users.db")
+	dbPath := filepath.Join(AppConfig.DataDir, "users.db")
 	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
