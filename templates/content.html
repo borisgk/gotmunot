@@ -188,10 +188,10 @@
 
 	<h2 style="padding-left: 1em;">Recent Uploads</h2>
 	{{if .Photos}}
-		<div class="photo-gallery">
+		<div class="photo-gallery" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}">
 			{{range .Photos}}
 			<div class="photo-item">
-				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath}}">
+				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath | html }}">
 					<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
 				</a>
 				<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
@@ -203,7 +203,7 @@
 			{{end}}
 		</div>
 	{{else}}
-		<p>No photos have been uploaded yet.</p>
+		<p style="padding-left: 1em;">No photos have been uploaded yet.</p>
 	{{end}}
 
 	<!-- The Lightbox Modal -->
@@ -222,29 +222,12 @@
 	<script>
 		// Get the modal
 		const lightbox = document.getElementById("lightbox");
-		const lightboxImg = document.getElementById("lightbox-img");
-		const closeBtn = document.getElementsByClassName("close")[0];
+		if (lightbox) {
+			const lightboxImg = document.getElementById("lightbox-img");
+			const closeBtn = lightbox.querySelector(".close");
 
-		// Get all photo links
-		const photoLinks = document.querySelectorAll('.lightbox-trigger');
-
-		// Add click listener to each photo link
-		document.querySelectorAll('.lightbox-trigger').forEach(link => {
-			link.addEventListener('click', function(e) {
-				e.preventDefault(); // Prevent default link behavior
-				lightbox.style.display = "block";
-				lightboxImg.src = this.dataset.preview;
-			});
-		});
-
-		// When the user clicks on <span> (x), close the modal
-		closeBtn.onclick = function() {
-			lightbox.style.display = "none";
-		}
-
-		// When the user clicks anywhere on the modal background, close it
-		lightbox.onclick = function(event) {
-			if (event.target === lightbox) {
+			// When the user clicks on <span> (x), close the modal
+			closeBtn.onclick = function() {
 				lightbox.style.display = "none";
 			}
 		}
@@ -266,6 +249,7 @@
 		/* Dropdown Menu Logic */
 		document.addEventListener('click', function(event) {
 			// Close all open dropdowns unless a menu button is clicked
+			// unless the click is inside an open dropdown
 			if (!event.target.matches('.photo-menu-btn')) {
 				let dropdowns = document.getElementsByClassName("dropdown-content");
 				for (let i = 0; i < dropdowns.length; i++) {
@@ -274,6 +258,18 @@
 						openDropdown.classList.remove('show');
 					}
 				}
+			}
+
+			// When the user clicks anywhere on the lightbox background, close it
+			if (event.target === lightbox) {
+				lightbox.style.display = "none";
+			}
+
+			// Handle lightbox trigger clicks
+			if (event.target.closest('.lightbox-trigger')) {
+				event.preventDefault();
+				lightbox.style.display = "block";
+				lightbox.querySelector('#lightbox-img').src = event.target.closest('.lightbox-trigger').dataset.preview;
 			}
 
 			// Handle menu button clicks
@@ -343,6 +339,81 @@
 				}
 			}
 		});
+
+		/* Lazy Loading Logic */
+		const photoGallery = document.querySelector('.photo-gallery');
+		if (photoGallery) {
+			let currentPage = 1;
+			const limit = parseInt(photoGallery.dataset.limit, 10) || 50;
+			const totalPhotos = parseInt(photoGallery.dataset.totalPhotos, 10);
+			let isLoading = false;
+
+			// Function to create a photo item from data
+			function createPhotoElement(photo) {
+				const photoItem = document.createElement('div');
+				photoItem.className = 'photo-item';
+
+				// The Go template functions `toThumbPath` and `toPreviewPath` just add suffixes.
+				// We can replicate that logic here in JS.
+				const thumbPath = `/media/thumbs/${photo.Filepath}.webp`; // Uppercase 'F'
+				const previewPath = `/media/previews/${photo.Filepath}`; // Uppercase 'F'
+
+				photoItem.innerHTML = `
+					<a href="#" class="lightbox-trigger" data-preview="${previewPath}">
+						<img src="${thumbPath}" alt="${photo.Filename}" title="${photo.Filename}">
+					</a>
+					<button class="photo-menu-btn" data-filename="${photo.Filename}">&#8942;</button>
+					<div class="dropdown-content">
+						<a href="#" class="info-btn">Info</a>
+						<a href="#" class="delete-btn">Delete</a>
+					</div>
+				`;
+				return photoItem;
+			}
+
+			// Function to load more photos
+			function loadMorePhotos() {
+				// Stop if we are already loading or have loaded all photos
+				if (isLoading || (currentPage * limit) >= totalPhotos) {
+					return;
+				}
+
+				isLoading = true;
+				currentPage++;
+
+				// You can add a loading indicator here if you want
+				// e.g., document.getElementById('loader').style.display = 'block';
+
+				fetch(`/api/photos?page=${currentPage}&limit=${limit}`)
+					.then(response => response.json())
+					.then(photos => {
+						if (photos && photos.length > 0) {
+							photos.forEach(photo => {
+								const photoEl = createPhotoElement(photo);
+								photoGallery.appendChild(photoEl);
+							});
+						} else {
+							// No more photos to load
+							console.log('All photos loaded.');
+						}
+						isLoading = false;
+						// Hide loading indicator
+						// e.g., document.getElementById('loader').style.display = 'none';
+					})
+					.catch(error => {
+						console.error('Error loading more photos:', error);
+						isLoading = false; // Reset on error
+					});
+			}
+
+			// Listen for scroll events
+			window.addEventListener('scroll', () => {
+				// Check if user has scrolled to the bottom of the page (with a 250px buffer)
+				if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 250) {
+					loadMorePhotos();
+				}
+			});
+		}
 	</script>
 </body>
 </html>

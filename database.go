@@ -143,22 +143,24 @@ func initPhotosDB() {
 	log.Println("Photos database initialized.")
 }
 
-// getRecentPhotos retrieves the 5 most recently uploaded photos.
-func getRecentPhotos() ([]PhotoMetadata, error) {
+// getPhotos retrieves a paginated list of photos.
+func getPhotos(limit, offset int) ([]PhotoMetadata, error) {
 	rows, err := photosDB.Query(`
         SELECT 
-            id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at, 
-            make, model, image_description, image_width, image_length, x_resolution, y_resolution, 
-            resolution_unit, orientation, software, date_time, artist, copyright, 
-            exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value, 
-            aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash, 
-            focal_length, focal_length_in_35mm_film, lens_make, lens_model, 
-            date_time_original, date_time_digitized, subsec_time, 
+            id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
+            make, model, image_description, image_width, image_length, x_resolution, y_resolution,
+            resolution_unit, orientation, software, date_time, artist, copyright,
+            exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
+            aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
+            focal_length, focal_length_in_35mm_film, lens_make, lens_model,
+            date_time_original, date_time_digitized, subsec_time,
             gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
         FROM photos
-        ORDER BY uploaded_at DESC
-        LIMIT 100
-    `)
+        ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC
+        LIMIT ?
+        OFFSET ?
+    `, limit, offset)
+
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +185,16 @@ func getRecentPhotos() ([]PhotoMetadata, error) {
 	}
 
 	return photos, rows.Err()
+}
+
+// getTotalPhotoCount returns the total number of photos in the database.
+func getTotalPhotoCount() (int, error) {
+	var count int
+	err := photosDB.QueryRow("SELECT COUNT(*) FROM photos").Scan(&count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
 
 // getPhotoByFilename retrieves all metadata for a single photo by its filename.

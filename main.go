@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 	"os"
+	"strconv"
 )
 
 // User struct to represent a user.
@@ -64,6 +65,8 @@ func main() {
 	http.HandleFunc("/service/regenerate-thumbnails/start", startRegenerateThumbnailsHandler)
 	// Handler for photo info
 	http.HandleFunc("/photo/info/", photoInfoHandler)
+	// API endpoint for paginated photos
+	http.HandleFunc("/api/photos", photosAPIHandler)
 	http.HandleFunc("/service/regenerate-thumbnails/status", getRegenerateThumbnailsStatusHandler)
 	// Handlers for polling-based preview regeneration
 	http.HandleFunc("/service/regenerate-previews/start", startRegeneratePreviewsHandler)
@@ -200,22 +203,35 @@ func contentHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get recent photos
-	photos, err := getRecentPhotos()
+	// Define the number of photos per page for the initial load.
+	const initialLimit = 50
+
+	// Get the first page of photos.
+	photos, err := getPhotos(initialLimit, 0)
 	if err != nil {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
-		// So we'll set photos to an empty slice and continue.
 		photos = []PhotoMetadata{}
+	}
+
+	// Get the total number of photos for the frontend to know when to stop loading.
+	totalPhotos, err := getTotalPhotoCount()
+	if err != nil {
+		log.Printf("Error getting total photo count: %v", err)
+		totalPhotos = 0 // Default to 0 on error
 	}
 
 	// Create a struct to hold all the data for the template
 	data := struct {
-		Username string
-		Photos   []PhotoMetadata
+		Username    string
+		Photos      []PhotoMetadata
+		TotalPhotos int
+		Limit       int
 	}{
-		Username: username,
-		Photos:   photos,
+		Username:    username,
+		Photos:      photos,
+		TotalPhotos: totalPhotos,
+		Limit:       initialLimit,
 	}
 
 	// Execute the "content.html" template and pass the data.
@@ -237,6 +253,48 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
+	// First, verify the user has a valid session.
+	if _, ok := isValidSession(db, r); !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse query parameters for pagination
+	pageStr := r.URL.Query().Get("page")
+	limitStr := r.URL.Query().Get("limit")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil || limit < 1 {
+		limit = 50 // Default limit
+	}
+
+	// Calculate offset
+	offset := (page - 1) * limit
+
+	// Retrieve photos from the database
+	photos, err := getPhotos(limit, offset)
+	if err != nil {
+		log.Printf("Error getting photos for API: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// If no photos are returned, it might be the end of the list.
+	// Send an empty array instead of an error.
+	if photos == nil {
+		photos = []PhotoMetadata{}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(photos)
 }
 
 func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
