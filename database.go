@@ -273,3 +273,12 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 	}
 	return result.LastInsertId()
 }
+
+// deletePhotoByFilename deletes a photo's record from the database by its filename.
+func deletePhotoByFilename(filename string) error {
+	_, err := photosDB.Exec("DELETE FROM photos WHERE filename = ?", filename)
+	if err != nil {
+		return err
+	}
+	return nil
+}

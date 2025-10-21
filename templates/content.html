@@ -148,6 +148,9 @@
 			height: 24px;
 			padding: 0;
 			z-index: 10;
+			opacity: 0; /* Hide by default */
+			visibility: hidden;
+			transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
 		}
 		.photo-menu-btn:hover {
 			background-color: rgba(0, 0, 0, 0.8);
@@ -173,6 +176,10 @@
 			background-color: #ddd;
 		}
 		.show {display:block;}
+		.photo-item:hover .photo-menu-btn {
+			opacity: 1; /* Show on hover */
+			visibility: visible;
+		}
 
 	</style>
 </head>
@@ -332,10 +339,22 @@
 				const filename = photoItem.querySelector('.photo-menu-btn').dataset.filename;
 				
 				if (confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) {
-					// Placeholder for actual delete logic
-					alert(`Deletion for "${filename}" has been requested.\n(Backend endpoint not yet implemented.)`);
-					// Example of how you would remove it from the view:
-					// photoItem.remove(); 
+					fetch(`/api/photo/${filename}`, {
+						method: 'DELETE',
+					})
+					.then(response => {
+						if (response.ok) {
+							// If deletion is successful, remove the photo item from the DOM
+							photoItem.remove();
+						} else {
+							// If there was an error, alert the user
+							alert(`Error deleting photo: ${response.statusText}`);
+						}
+					})
+					.catch(error => {
+						console.error('Error during photo deletion:', error);
+						alert('A network error occurred while trying to delete the photo.');
+					});
 				}
 			}
 		});

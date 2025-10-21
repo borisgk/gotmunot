@@ -72,6 +72,8 @@ func main() {
 	http.HandleFunc("/service/regenerate-previews/start", startRegeneratePreviewsHandler)
 	http.HandleFunc("/service/regenerate-previews/status", getRegeneratePreviewsStatusHandler)
 
+	// API for single photo operations (e.g., DELETE)
+	http.HandleFunc("/api/photo/", photoActionHandler)
 	// Serve static files from the "static" directory.
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -326,6 +328,69 @@ func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(photoData)
+}
+
+func photoActionHandler(w http.ResponseWriter, r *http.Request) {
+	// First, verify the user has a valid session.
+	if _, ok := isValidSession(db, r); !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get the requested filename from the URL path.
+	// e.g., /api/photo/1698512345-my-photo.jpg -> 1698512345-my-photo.jpg
+	filename := strings.TrimPrefix(r.URL.Path, "/api/photo/")
+	if filename == "" {
+		http.Error(w, "Missing filename", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodDelete:
+		handleDeletePhoto(w, r, filename)
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) {
+	// 1. Get photo metadata from DB to find its filepath.
+	photo, err := getPhotoByFilename(filename)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Photo not found", http.StatusNotFound)
+		} else {
+			log.Printf("Error getting photo info for deletion %s: %v", filename, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// 2. Construct paths for all three files.
+	originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
+	previewPath := filepath.Join(AppConfig.PreviewsDir, photo.Filepath)
+	thumbPath := filepath.Join(AppConfig.ThumbsDir, photo.Filepath+".webp")
+
+	// 3. Delete the files. We'll log errors but continue, to ensure we try to delete everything.
+	if err := os.Remove(originalPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: could not delete original file %s: %v", originalPath, err)
+	}
+	if err := os.Remove(previewPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: could not delete preview file %s: %v", previewPath, err)
+	}
+	if err := os.Remove(thumbPath); err != nil && !os.IsNotExist(err) {
+		log.Printf("Warning: could not delete thumbnail file %s: %v", thumbPath, err)
+	}
+
+	// 4. Delete the database record.
+	if err := deletePhotoByFilename(filename); err != nil {
+		log.Printf("Error deleting photo record for %s: %v", filename, err)
+		http.Error(w, "Error deleting photo from database", http.StatusInternalServerError)
+		return
+	}
+
+	log.Printf("Successfully deleted photo '%s' and its associated files.", filename)
+	w.WriteHeader(http.StatusNoContent) // 204 No Content is a good response for a successful DELETE.
 }
 
 func servicePageHandler(w http.ResponseWriter, r *http.Request) {
