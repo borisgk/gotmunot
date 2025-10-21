@@ -41,18 +41,11 @@ func init() {
 			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PhotoUploadDir, err)
 		}
 	}
-	// Create the thumbnail directory if it doesn't exist.
-	if _, err := os.Stat(AppConfig.ThumbsDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", AppConfig.ThumbsDir)
-		if err := os.MkdirAll(AppConfig.ThumbsDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", AppConfig.ThumbsDir, err)
-		}
-	}
-	// Create the preview directory if it doesn't exist.
-	if _, err := os.Stat(AppConfig.PreviewsDir); os.IsNotExist(err) {
-		fmt.Printf("Creating '%s' directory...\n", AppConfig.PreviewsDir)
-		if err := os.MkdirAll(AppConfig.PreviewsDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PreviewsDir, err)
+	// Create subdirectories for originals, thumbs, and previews
+	for _, dir := range []string{"originals", "thumbs", "previews"} {
+		subDirPath := filepath.Join(AppConfig.PhotoUploadDir, dir)
+		if err := os.MkdirAll(subDirPath, 0755); err != nil {
+			log.Fatalf("Error creating '%s' directory: %v", subDirPath, err)
 		}
 	}
 

@@ -11,8 +11,6 @@ import (
 // Config holds the application configuration.
 type Config struct {
 	PhotoUploadDir string `toml:"photo_upload_dir"`
-	ThumbsDir      string `toml:"thumbs_dir"`
-	PreviewsDir    string `toml:"previews_dir"`
 	DataDir        string `toml:"data_dir"`
 }
 
@@ -24,8 +22,6 @@ func LoadConfig() {
 	// Set default configuration
 	AppConfig = Config{
 		PhotoUploadDir: "/data/tmunot",
-		ThumbsDir:      "/data/tmunot/thumbs",
-		PreviewsDir:    "/data/tmunot/previews",
 		DataDir:        "data",
 	}
 

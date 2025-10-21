@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"strings"
 
 	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
@@ -116,7 +117,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Move the file to the correct folder
-	newFilePath, newFilename, err := saveUploadedFile(file, header.Filename, photoDate)
+	newFilePath, newFilename, relativePath, err := saveUploadedFile(file, header.Filename, photoDate)
 	if err != nil {
 		log.Printf("Error moving file %s: %v", header.Filename, err)
 		w.Header().Set("Content-Type", "application/json")
@@ -128,14 +129,6 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
-
-	// Get the relative path to store in the database.
-	relativePath, err := filepath.Rel(AppConfig.PhotoUploadDir, newFilePath)
-	if err != nil {
-		// This should not happen if paths are constructed correctly, but good to handle.
-		log.Printf("Error creating relative path for %s: %v", newFilePath, err)
-		relativePath = newFilename // Fallback to just the filename
-	}
 
 	// Start thumbnail and preview generation in the background.
 	// This allows the handler to return a response to the client immediately.
@@ -214,27 +207,28 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveUploadedFile saves the uploaded file to the uploads directory with a unique name.
-func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Time) (string, string, error) {
+func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Time) (string, string, string, error) {
 	// Get date parts from the provided photoDate to create the directory structure.
 	year := photoDate.Format("2006")
 	month := photoDate.Format("01")
 	day := photoDate.Format("02")
 
-	// Construct the target directory path: /data/tmunot/YEAR/MONTH/DAY
-	targetDir := filepath.Join(AppConfig.PhotoUploadDir, year, month, day)
+	// Construct the target directory path: /data/tmunot/originals/YEAR/MONTH/DAY
+	targetDir := filepath.Join(AppConfig.PhotoUploadDir, "originals", year, month, day)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return "", "", fmt.Errorf("failed to create upload directory: %w", err)
+		return "", "", "", fmt.Errorf("failed to create upload directory: %w", err)
 	}
 
 	// Generate a new unique filename to prevent overwrites and improve security.
 	// Format: <timestamp>-<original_filename>
 	newFilename := fmt.Sprintf("%d-%s", time.Now().Unix(), originalFilename)
+	relativePath := filepath.Join(year, month, day, newFilename)
 	newFilePath := filepath.Join(targetDir, newFilename)
 
 	// Create the new file
 	newFile, err := os.Create(newFilePath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create new file: %w", err)
+		return "", "", "", fmt.Errorf("failed to create new file: %w", err)
 	}
 	defer newFile.Close()
 
@@ -243,9 +237,9 @@ func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Ti
 	if err != nil {
 		// If copy fails, we should remove the partially created file.
 		os.Remove(newFilePath)
-		return "", "", fmt.Errorf("failed to copy file content: %w", err)
+		return "", "", "", fmt.Errorf("failed to copy file content: %w", err)
 	}
-	return newFilePath, newFilename, nil
+	return newFilePath, newFilename, relativePath, nil
 }
 
 // createThumbnail generates a 500px wide WebP thumbnail for the given image.
@@ -266,8 +260,8 @@ func createThumbnail(originalPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not determine relative path for thumbnail: %w", err)
 	}
-
-	thumbDir := filepath.Join(AppConfig.ThumbsDir, filepath.Dir(relPath))
+	// relPath is "originals/YYYY/MM/DD/filename.jpg", we want "thumbs/YYYY/MM/DD/"
+	thumbDir := filepath.Join(AppConfig.PhotoUploadDir, "thumbs", filepath.Dir(strings.TrimPrefix(relPath, "originals"+string(filepath.Separator))))
 	if err := os.MkdirAll(thumbDir, 0755); err != nil {
 		return fmt.Errorf("failed to create thumbnail directory: %w", err)
 	}
@@ -310,8 +304,8 @@ func createPreview(originalPath string) error {
 	if err != nil {
 		return fmt.Errorf("could not determine relative path for preview: %w", err)
 	}
-
-	previewDir := filepath.Join(AppConfig.PreviewsDir, filepath.Dir(relPath))
+	// relPath is "originals/YYYY/MM/DD/filename.jpg", we want "previews/YYYY/MM/DD/"
+	previewDir := filepath.Join(AppConfig.PhotoUploadDir, "previews", filepath.Dir(strings.TrimPrefix(relPath, "originals"+string(filepath.Separator))))
 	if err := os.MkdirAll(previewDir, 0755); err != nil {
 		return fmt.Errorf("failed to create preview directory: %w", err)
 	}

@@ -78,14 +78,14 @@ func main() {
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	// Serve uploaded photos from the photoUploadDir.
-	mediaFS := http.FileServer(http.Dir(AppConfig.PhotoUploadDir))
-	http.Handle("/media/", http.StripPrefix("/media/", mediaFS))
-
-	// Serve thumbnails securely through a custom handler.
-	http.HandleFunc("/media/thumbs/", thumbnailHandler)
-	// Serve previews securely through a custom handler.
-	http.HandleFunc("/media/previews/", previewHandler)
+	// Securely serve all media (originals, thumbs, previews) from the photoUploadDir.
+	http.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) {
+		if _, ok := isValidSession(db, r); !ok {
+			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			return
+		}
+		http.StripPrefix("/media/", http.FileServer(http.Dir(AppConfig.PhotoUploadDir))).ServeHTTP(w, r)
+	})
 
 	// Print a message indicating that the server is starting.
 	fmt.Println("Starting TM25 Web Server on port 9030...")
@@ -93,53 +93,6 @@ func main() {
 	// Start the HTTP server on port 9030.
 	// If there's an error starting the server, log.Fatal will log the error and exit.
 	log.Fatal(http.ListenAndServe(":9030", nil))
-}
-
-func thumbnailHandler(w http.ResponseWriter, r *http.Request) {
-	// First, verify the user has a valid session.
-	if _, ok := isValidSession(db, r); !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// Get the requested file path from the URL.
-	// e.g., /media/thumbs/2023/10/28/some-photo.jpg.webp -> 2023/10/28/some-photo.jpg.webp
-	requestedFile := strings.TrimPrefix(r.URL.Path, "/media/thumbs/")
-
-	// Basic security check to prevent directory traversal attacks.
-	if strings.Contains(requestedFile, "..") {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-
-	// Construct the full, absolute path to the file on the filesystem.
-	fullPath := filepath.Join(AppConfig.ThumbsDir, requestedFile)
-
-	// Serve the file. http.ServeFile handles Content-Type, caching headers, etc.
-	http.ServeFile(w, r, fullPath)
-}
-
-func previewHandler(w http.ResponseWriter, r *http.Request) {
-	// First, verify the user has a valid session.
-	if _, ok := isValidSession(db, r); !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// Get the requested file path from the URL.
-	requestedFile := strings.TrimPrefix(r.URL.Path, "/media/previews/")
-
-	// Basic security check to prevent directory traversal attacks.
-	if strings.Contains(requestedFile, "..") {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-
-	// Construct the full, absolute path to the file on the filesystem.
-	fullPath := filepath.Join(AppConfig.PreviewsDir, requestedFile)
-
-	// Serve the file.
-	http.ServeFile(w, r, fullPath)
 }
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
@@ -367,9 +320,9 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) 
 	}
 
 	// 2. Construct paths for all three files.
-	originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
-	previewPath := filepath.Join(AppConfig.PreviewsDir, photo.Filepath)
-	thumbPath := filepath.Join(AppConfig.ThumbsDir, photo.Filepath+".webp")
+	originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
+	previewPath := filepath.Join(AppConfig.PhotoUploadDir, "previews", photo.Filepath)
+	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, "thumbs", photo.Filepath+".webp")
 
 	// 3. Delete the files. We'll log errors but continue, to ensure we try to delete everything.
 	if err := os.Remove(originalPath); err != nil && !os.IsNotExist(err) {
@@ -440,7 +393,7 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
@@ -522,7 +475,7 @@ func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
