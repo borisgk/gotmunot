@@ -144,7 +144,7 @@ func initPhotosDB() {
 }
 
 // getPhotos retrieves a paginated list of photos.
-func getPhotos(limit, offset int) ([]PhotoMetadata, error) {
+func getPhotos(username string, limit, offset int) ([]PhotoMetadata, error) {
 	rows, err := photosDB.Query(`
         SELECT 
             id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
@@ -156,10 +156,11 @@ func getPhotos(limit, offset int) ([]PhotoMetadata, error) {
             date_time_original, date_time_digitized, subsec_time,
             gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
         FROM photos
+        WHERE uploaded_by = ?
         ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC
         LIMIT ?
         OFFSET ?
-    `, limit, offset)
+    `, username, limit, offset)
 
 	if err != nil {
 		return nil, err
@@ -188,9 +189,9 @@ func getPhotos(limit, offset int) ([]PhotoMetadata, error) {
 }
 
 // getTotalPhotoCount returns the total number of photos in the database.
-func getTotalPhotoCount() (int, error) {
+func getTotalPhotoCount(username string) (int, error) {
 	var count int
-	err := photosDB.QueryRow("SELECT COUNT(*) FROM photos").Scan(&count)
+	err := photosDB.QueryRow("SELECT COUNT(*) FROM photos WHERE uploaded_by = ?", username).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -233,8 +234,8 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 }
 
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
-func getAllPhotos() ([]PhotoMetadata, error) {
-	rows, err := photosDB.Query(`SELECT id, filename, filepath FROM photos ORDER BY id`)
+func getAllPhotos(username string) ([]PhotoMetadata, error) {
+	rows, err := photosDB.Query(`SELECT id, filename, filepath, uploaded_by FROM photos WHERE uploaded_by = ? ORDER BY id`, username)
 	if err != nil {
 		return nil, err
 	}
@@ -243,7 +244,7 @@ func getAllPhotos() ([]PhotoMetadata, error) {
 	var photos []PhotoMetadata
 	for rows.Next() {
 		var p PhotoMetadata
-		if err := rows.Scan(&p.ID, &p.Filename, &p.Filepath); err != nil {
+		if err := rows.Scan(&p.ID, &p.Filename, &p.Filepath, &p.UploadedBy); err != nil {
 			return nil, err
 		}
 		photos = append(photos, p)

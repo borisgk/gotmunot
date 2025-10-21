@@ -41,13 +41,6 @@ func init() {
 			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PhotoUploadDir, err)
 		}
 	}
-	// Create subdirectories for originals, thumbs, and previews
-	for _, dir := range []string{"originals", "thumbs", "previews"} {
-		subDirPath := filepath.Join(AppConfig.PhotoUploadDir, dir)
-		if err := os.MkdirAll(subDirPath, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", subDirPath, err)
-		}
-	}
 
 	// Ensure "templates" directory exists
 	if _, err := os.Stat("templates"); os.IsNotExist(err) {
@@ -106,11 +99,11 @@ func init() {
 	}
 
 	funcMap := template.FuncMap{
-		"toThumbPath": func(originalPath string) string {
-			return filepath.Join("thumbs", originalPath) + ".webp"
+		"toThumbPath": func(username, originalPath string) string {
+			return filepath.Join(username, "thumbs", originalPath) + ".webp"
 		},
-		"toPreviewPath": func(originalPath string) string {
-			return filepath.Join("previews", originalPath)
+		"toPreviewPath": func(username, originalPath string) string {
+			return filepath.Join(username, "previews", originalPath)
 		},
 	}
 	// Parse the templates

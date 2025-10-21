@@ -80,10 +80,20 @@ func main() {
 
 	// Securely serve all media (originals, thumbs, previews) from the photoUploadDir.
 	http.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) {
-		if _, ok := isValidSession(db, r); !ok {
+		sessionUser, ok := isValidSession(db, r)
+		if !ok {
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
+
+		// Security Check: Ensure the logged-in user is accessing their own media.
+		// URL path is like /media/user1/thumbs/2023/10/28/file.jpg.webp
+		pathParts := strings.SplitN(strings.TrimPrefix(r.URL.Path, "/media/"), "/", 2)
+		if len(pathParts) < 2 || pathParts[0] != sessionUser {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+			return
+		}
+
 		http.StripPrefix("/media/", http.FileServer(http.Dir(AppConfig.PhotoUploadDir))).ServeHTTP(w, r)
 	})
 
@@ -162,7 +172,7 @@ func contentHandler(w http.ResponseWriter, r *http.Request) {
 	const initialLimit = 50
 
 	// Get the first page of photos.
-	photos, err := getPhotos(initialLimit, 0)
+	photos, err := getPhotos(username, initialLimit, 0)
 	if err != nil {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
@@ -170,7 +180,7 @@ func contentHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the total number of photos for the frontend to know when to stop loading.
-	totalPhotos, err := getTotalPhotoCount()
+	totalPhotos, err := getTotalPhotoCount(username)
 	if err != nil {
 		log.Printf("Error getting total photo count: %v", err)
 		totalPhotos = 0 // Default to 0 on error
@@ -212,7 +222,8 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 	// First, verify the user has a valid session.
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -235,7 +246,7 @@ func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 	offset := (page - 1) * limit
 
 	// Retrieve photos from the database
-	photos, err := getPhotos(limit, offset)
+	photos, err := getPhotos(username, limit, offset)
 	if err != nil {
 		log.Printf("Error getting photos for API: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -320,9 +331,9 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) 
 	}
 
 	// 2. Construct paths for all three files.
-	originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
-	previewPath := filepath.Join(AppConfig.PhotoUploadDir, "previews", photo.Filepath)
-	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, "thumbs", photo.Filepath+".webp")
+	originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
+	previewPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "previews", photo.Filepath)
+	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "thumbs", photo.Filepath+".webp")
 
 	// 3. Delete the files. We'll log errors but continue, to ensure we try to delete everything.
 	if err := os.Remove(originalPath); err != nil && !os.IsNotExist(err) {
@@ -362,7 +373,8 @@ func servicePageHandler(w http.ResponseWriter, r *http.Request) {
 
 func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 	// Ensure user is authenticated
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -376,10 +388,10 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 	taskProgressMap.Unlock()
 
 	// Start the regeneration in a new goroutine
-	go func(id string) {
+	go func(id, user string) {
 		log.Println("Starting thumbnail regeneration process for task:", id)
 
-		allPhotos, err := getAllPhotos()
+		allPhotos, err := getAllPhotos(user)
 		if err != nil {
 			log.Printf("Error getting all photos for regeneration: %v", err)
 			taskProgressMap.Lock()
@@ -393,12 +405,12 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
 			} else {
-				if err := createThumbnail(originalPath); err != nil {
+				if err := createThumbnail(originalPath, photo.UploadedBy); err != nil {
 					log.Printf("Warning: failed to regenerate thumbnail for %s: %v", photo.Filename, err)
 				}
 			}
@@ -415,7 +427,7 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 		taskProgressMap.Lock()
 		taskProgressMap.tasks[id].Complete = true
 		taskProgressMap.Unlock()
-	}(taskID)
+	}(taskID, username)
 
 	// Immediately respond with the task ID
 	w.Header().Set("Content-Type", "application/json")
@@ -444,7 +456,8 @@ func getRegenerateThumbnailsStatusHandler(w http.ResponseWriter, r *http.Request
 
 func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 	// Ensure user is authenticated
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -458,10 +471,10 @@ func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 	taskProgressMap.Unlock()
 
 	// Start the regeneration in a new goroutine
-	go func(id string) {
+	go func(id, user string) {
 		log.Println("Starting preview regeneration process for task:", id)
 
-		allPhotos, err := getAllPhotos()
+		allPhotos, err := getAllPhotos(user)
 		if err != nil {
 			log.Printf("Error getting all photos for preview regeneration: %v", err)
 			taskProgressMap.Lock()
@@ -475,12 +488,12 @@ func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Found %d photos to process for task %s.", totalPhotos, id)
 
 		for i, photo := range allPhotos {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, "originals", photo.Filepath)
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
 
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
 			} else {
-				if err := createPreview(originalPath); err != nil {
+				if err := createPreview(originalPath, photo.UploadedBy); err != nil {
 					log.Printf("Warning: failed to regenerate preview for %s: %v", photo.Filename, err)
 				}
 			}
@@ -497,7 +510,7 @@ func startRegeneratePreviewsHandler(w http.ResponseWriter, r *http.Request) {
 		taskProgressMap.Lock()
 		taskProgressMap.tasks[id].Complete = true
 		taskProgressMap.Unlock()
-	}(taskID)
+	}(taskID, username)
 
 	// Immediately respond with the task ID
 	w.Header().Set("Content-Type", "application/json")

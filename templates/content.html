@@ -199,8 +199,8 @@
 		<div class="photo-gallery" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}">
 			{{range .Photos}}
 			<div class="photo-item">
-				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath | html }}">
-					<img src="/media/{{.Filepath | toThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}">
+				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
+					<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}">
 				</a>
 				<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
 				<div class="dropdown-content">
@@ -375,8 +375,8 @@
 
 				// The Go template functions `toThumbPath` and `toPreviewPath` just add suffixes.
 				// We can replicate that logic here in JS.
-				const thumbPath = `/media/thumbs/${photo.Filepath}.webp`; // Uppercase 'F'
-				const previewPath = `/media/previews/${photo.Filepath}`; // Uppercase 'F'
+				const thumbPath = `/media/{{.Username}}/thumbs/${photo.Filepath}.webp`; // Uppercase 'F'
+				const previewPath = `/media/{{.Username}}/previews/${photo.Filepath}`; // Uppercase 'F'
 
 				photoItem.innerHTML = `
 					<a href="#" class="lightbox-trigger" data-preview="${previewPath}">
