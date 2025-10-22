@@ -275,6 +275,32 @@ func getDistinctYears(username string) ([]int, error) {
 	return years, rows.Err()
 }
 
+// getPhotoCountsByYear retrieves a map of year to photo count for a user.
+func getPhotoCountsByYear(username string) (map[int]int, error) {
+	rows, err := photosDB.Query(`
+		SELECT
+			CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) as year,
+			COUNT(*) as count
+		FROM photos
+		WHERE uploaded_by = ? AND year IS NOT NULL
+		GROUP BY year
+	`, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	counts := make(map[int]int)
+	for rows.Next() {
+		var year, count int
+		if err := rows.Scan(&year, &count); err != nil {
+			return nil, err
+		}
+		counts[year] = count
+	}
+	return counts, rows.Err()
+}
+
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
 func getAllPhotos(username string) ([]PhotoMetadata, error) {
 	rows, err := photosDB.Query(`SELECT id, filename, filepath, uploaded_by FROM photos WHERE uploaded_by = ? ORDER BY id`, username)

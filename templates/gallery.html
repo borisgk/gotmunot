@@ -28,7 +28,9 @@
 	<div class="year-bar">
 		<a href="/gallery" class="year-link">All</a>
 		{{range .Years}}
-			<a href="#" class="year-link" data-year="{{.}}">{{.}}</a>
+			{{$year := .}}
+			{{$count := index $.PhotoCounts $year}}
+			<a href="#" class="year-link" data-year="{{$year}}">{{$year}}<sup>{{$count}}</sup></a>
 		{{end}}
 	</div>
 	{{end}}

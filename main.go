@@ -13,6 +13,7 @@ import (
 	"sync"
 	"os"
 	"strconv"
+	"sort"
 )
 
 // User struct to represent a user.
@@ -195,13 +196,19 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		totalPhotos = 0 // Default to 0 on error
 	}
 
-	// Get distinct years for the year bar
-	years, err := getDistinctYears(username)
+	// Get photo counts for the year bar
+	photoCounts, err := getPhotoCountsByYear(username)
 	if err != nil {
-		log.Printf("Error getting distinct years: %v", err)
-		// Don't fail the request, just show an empty year bar
-		years = []int{}
+		log.Printf("Error getting photo counts by year: %v", err)
+		photoCounts = make(map[int]int) // Ensure it's not nil
 	}
+
+	// Get a sorted list of years from the map keys.
+	var years []int
+	for year := range photoCounts {
+		years = append(years, year)
+	}
+	sort.Ints(years)
 
 	// Create a struct to hold all the data for the template
 	data := struct {
@@ -211,6 +218,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		Limit       int
 		FilterYear  int
 		Years       []int
+		PhotoCounts map[int]int
 	}{
 		Username:    username,
 		Photos:      photos,
@@ -218,6 +226,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		Limit:       initialLimit,
 		FilterYear:  year,
 		Years:       years,
+		PhotoCounts: photoCounts,
 	}
 
 	// Execute the "gallery.html" template and pass the data.

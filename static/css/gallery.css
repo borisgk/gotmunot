@@ -150,10 +150,16 @@ body {
     display: inline-block;
     color: #333;
     text-align: center;
-    padding: 5px 10px;
+    padding: 8px 12px;
     text-decoration: none;
 }
-
+.year-bar a sup {
+    font-size: 0.6em;
+    margin-left: 2px;
+    color: #666;
+    font-weight: normal;
+}
+ 
 /* Selection Action Bar Styles */
 .selection-action-bar {
     display: none; /* Hidden by default */
