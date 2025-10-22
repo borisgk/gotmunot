@@ -34,6 +34,13 @@ func init() {
 			log.Fatalf("Error creating 'static/css' directory: %v", err)
 		}
 	}
+	// Create static/js directory if not exists
+	if _, err := os.Stat("static/js"); os.IsNotExist(err) {
+		fmt.Println("Creating 'static/js' directory...")
+		if err := os.MkdirAll("static/js", 0755); err != nil {
+			log.Fatalf("Error creating 'static/js' directory: %v", err)
+		}
+	}
 	// Create the photo upload directory if it doesn't exist.
 	if _, err := os.Stat(AppConfig.PhotoUploadDir); os.IsNotExist(err) {
 		fmt.Printf("Creating '%s' directory...\n", AppConfig.PhotoUploadDir)
@@ -107,7 +114,7 @@ func init() {
 		},
 	}
 	// Parse the templates
-	tmpl, err = template.New("").Funcs(funcMap).ParseFiles("templates/login.html", "templates/content.html", "templates/upload.html", "templates/service.html")
+	tmpl, err = template.New("").Funcs(funcMap).ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html", "templates/service.html")
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}

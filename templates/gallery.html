@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Content</title>
+	<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
+	<link rel="stylesheet" href="/static/css/gallery.css">
+	<script src="/static/js/gallery.js"></script>
+</head>
+<body>
+	<div class="top-nav">
+		<a href="/gallery">Gallery</a>
+		<a href="/upload-page">Upload</a>
+		<a href="/service">Service</a>
+		<div id="selection-bar" class="selection-action-bar">
+			<a href="#" id="selection-menu-trigger"><span id="selection-count"></span></a>
+			<div id="selection-dropdown" class="dropdown-content">
+				<a href="#" id="clear-selection-btn">Clear selection</a>
+				<a href="#" id="regenerate-selected-btn">Regenerate</a>
+				<a href="#" id="delete-selected-btn">Delete Selected</a>
+			</div>
+		</div>
+		<div class="top-nav-right">
+			<a href="/logout">Logout ({{.Username}})</a>
+		</div>
+	</div>
+
+	<h2 style="padding-left: 1em;">Recent Uploads</h2>
+	{{if .Photos}}
+		<div class="photo-gallery" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}">
+			{{range .Photos}}
+			<div class="photo-item">
+				<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
+				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
+					<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}">
+				</a>
+				<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
+				<div class="dropdown-content">
+					<a href="#" class="info-btn">Info</a>
+					<a href="#" class="delete-btn">Delete</a>
+				</div>
+			</div>
+			{{end}}
+		</div>
+	{{else}}
+		<p style="padding-left: 1em;">No photos have been uploaded yet.</p>
+	{{end}}
+
+	<!-- The Lightbox Modal -->
+	<div id="lightbox" class="modal">
+		<span class="close">&times;</span>
+		<img class="modal-content" id="lightbox-img">
+	</div>
+
+	<!-- The Info Modal -->
+	<div id="info-modal" class="info-modal">
+		<div class="info-modal-content">
+			<span class="close">&times;</span>
+			<div id="info-modal-body"></div>
+		</div>
+	</div>
+</body>
+</html>

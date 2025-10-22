@@ -41,7 +41,7 @@ func main() {
 	// Define a handler function for the root path ("/").
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect to the content page
-		http.Redirect(w, r, "/content", http.StatusSeeOther)
+		http.Redirect(w, r, "/gallery", http.StatusSeeOther)
 	})
 
 	// Define a handler function for the /status path
@@ -53,8 +53,8 @@ func main() {
 	http.HandleFunc("/login", loginHandler)
 	// Handler for logout page
 	http.HandleFunc("/logout", logoutHandler)
-	// Handler for the secure area
-	http.HandleFunc("/content", contentHandler)
+	// Handler for the gallery page
+	http.HandleFunc("/gallery", galleryHandler)
 	//Handler for the upload
 	http.HandleFunc("/upload", uploadHandler)
 	// Handler for the upload page
@@ -77,9 +77,10 @@ func main() {
 	// API for batch photo operations
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
 	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
-	// Serve static files from the "static" directory.
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	// Serve static files (CSS, JS, etc.)
+	http.Handle("/static/css/", http.StripPrefix("/static/css/", http.FileServer(http.Dir("static/css"))))
+	http.Handle("/static/js/", http.StripPrefix("/static/js/", http.FileServer(http.Dir("static/js"))))
 
 	// Securely serve all media (originals, thumbs, previews) from the photoUploadDir.
 	http.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) {
@@ -157,14 +158,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		})
 
 		// Redirect to a secure area
-		http.Redirect(w, r, "/content", http.StatusSeeOther)
+		http.Redirect(w, r, "/gallery", http.StatusSeeOther)
 
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
 }
 
-func contentHandler(w http.ResponseWriter, r *http.Request) {
+func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	username, ok := isValidSession(db, r)
 	if !ok {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -202,8 +203,8 @@ func contentHandler(w http.ResponseWriter, r *http.Request) {
 		Limit:       initialLimit,
 	}
 
-	// Execute the "content.html" template and pass the data.
-	if err := tmpl.ExecuteTemplate(w, "content.html", data); err != nil {
+	// Execute the "gallery.html" template and pass the data.
+	if err := tmpl.ExecuteTemplate(w, "gallery.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
