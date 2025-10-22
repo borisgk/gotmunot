@@ -1,0 +1,247 @@
+body {
+    font-family: 'Open Sans', sans-serif;
+    margin: 0; /* Reset default body margin */
+    padding-top: 60px; /* Add padding to body to avoid content being hidden by fixed nav */
+}
+.photo-gallery {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between; /* Distribute items evenly */
+    gap: 2px;
+}
+.photo-gallery img {
+    height: 250px; /* Made thumbnails bigger */
+    width: 100%;   /* Image fills its container */
+    display: block;
+    object-fit: cover; /* Ensures image covers the area, cropping to fit */
+}
+.photo-item {
+    flex-grow: 1; /* Allows items to grow and fill the row */
+    position: relative; /* For potential future overlays */
+}
+.photo-item.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0; /* Covers the entire item */
+    box-shadow: inset 0 0 0 3px #007bff; /* Blue border inside */
+}
+.photo-item p {
+    margin: 5px 0 0 0;
+    font-size: 0.8em;
+}
+.photo-gallery::after {
+    content: "";
+    flex-grow: 10; /* Large grow factor to push items to the left */
+}
+
+/* Lightbox Modal Styles */
+.modal {
+    display: none; /* Hidden by default */
+    position: fixed; /* Stay in place */
+    z-index: 1000; /* Sit on top */
+    padding: 0; /* Remove padding to allow full screen */
+    left: 0;
+    top: 0;
+    width: 100%; /* Full width */
+    height: 100%; /* Full height */
+    overflow: auto; /* Enable scroll if needed */
+    background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
+}
+
+.modal-content {
+    margin: auto;
+    display: block;
+    width: 100vw; /* Full viewport width */
+    height: 100vh; /* Full viewport height */
+    object-fit: contain; /* Fit image within viewport, preserving aspect ratio */
+}
+
+.close {
+    position: absolute;
+    top: 20px;
+    right: 45px;
+    z-index: 1001; /* Ensure it's above the image */
+    color: #f1f1f1;
+    font-size: 40px;
+    font-weight: bold;
+    transition: 0.3s;
+}
+
+.close:hover,
+.close:focus {
+    color: #bbb;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+/* Info Modal Styles */
+.info-modal {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 1002; /* Higher than lightbox */
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.6);
+}
+.info-modal-content {
+    background-color: #fefefe;
+    margin: 10% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 600px;
+    border-radius: 8px;
+    position: relative;
+}
+.info-modal-content h3 {
+    margin-top: 0;
+}
+.info-modal-content table {
+    width: 100%;
+    border-collapse: collapse;
+}
+.info-modal-content td {
+    padding: 4px 8px;
+    border-bottom: 1px solid #ddd;
+}
+
+/* Navigation Bar Styles */
+.top-nav {
+    background-color: #333;
+    position: fixed; /* Fix it to the top */
+    top: 0;
+    width: 100%;
+    z-index: 999;
+}
+.top-nav a {
+    float: left;
+    color: #f2f2f2;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    font-size: 17px;
+}
+.top-nav a:hover {
+    background-color: #ddd;
+    color: black;
+}
+.top-nav-right {
+    float: right;
+}
+
+/* Selection Action Bar Styles */
+.selection-action-bar {
+    display: none; /* Hidden by default */
+    float: left;
+    position: relative; /* For dropdown positioning */
+}
+.selection-action-bar.active {
+    display: block; /* Show when active */
+}
+.selection-action-bar .dropdown-content {
+    display: none; /* Controlled by .show class */
+    position: absolute;
+    top: 50px; /* Position below the nav bar */
+    left: 0;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1000; /* Ensure it's above gallery content */
+    border-radius: 4px;
+}
+
+/* Dropdown Menu Styles */
+.photo-menu-btn {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 24px;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    z-index: 10;
+    opacity: 0; /* Hide by default */
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
+}
+.photo-menu-btn:hover {
+    background-color: rgba(0, 0, 0, 0.8);
+}
+.photo-item .dropdown-content {
+    display: none;
+    position: absolute;
+    top: 30px;
+    right: 5px;
+    background-color: #f1f1f1;
+    min-width: 100px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 11;
+    border-radius: 4px;
+}
+.dropdown-content a, #selection-dropdown a {
+    color: black;
+    padding: 12px 16px;
+    text-decoration: none;
+    display: block;
+    width: 100%;
+    text-align: left; /* Override inherited center alignment */
+    box-sizing: border-box;
+}
+.dropdown-content a:hover {
+    background-color: #ddd;
+}
+.dropdown-content.show {
+    display:block;
+}
+.photo-item:hover .photo-menu-btn {
+    opacity: 1; /* Show on hover */
+    visibility: visible;
+}
+.photo-select-checkbox {
+    /* Reset appearance to allow custom styling */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* Positioning and Size (matching .photo-menu-btn) */
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    width: 24px;
+    height: 24px;
+    z-index: 10;
+
+    /* Custom round style */
+    background-color: rgba(255, 255, 255, 0.7);
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out;
+    
+    /* For checkmark positioning */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.photo-item:hover .photo-select-checkbox, .photo-select-checkbox:checked {
+    opacity: 1;
+}
+.photo-select-checkbox:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+.photo-select-checkbox:checked::after {
+    content: '✔';
+    color: white;
+    font-size: 14px;
+}
