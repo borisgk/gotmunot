@@ -26,17 +26,25 @@
 
 	{{if .Years}}
 	<div class="year-bar">
+		<a href="/gallery" class="year-link">All</a>
 		{{range .Years}}
-			<a href="#">{{.}}</a>
+			<a href="#" class="year-link" data-year="{{.}}">{{.}}</a>
 		{{end}}
 	</div>
 	{{end}}
 
 	<h2 style="padding-left: 1em;">Recent Uploads</h2>
 	{{if .Photos}}
-		<div class="photo-gallery" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}">
+		<div class="photo-gallery" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}" data-filter-year="{{.FilterYear}}">
 			{{range .Photos}}
-			<div class="photo-item">
+			{{/* Determine the photo's year using the same priority as the DB sort */}}
+			{{$photoYear := .UploadedAt.Year}}
+			{{if .DateTimeOriginal.Valid}}
+				{{$photoYear = .DateTimeOriginal.Time.Year}}
+			{{else if .DateTime.Valid}}
+				{{$photoYear = .DateTime.Time.Year}}
+			{{end}}
+			<div class="photo-item" data-year="{{$photoYear}}">
 				<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
 				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
 					<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}">

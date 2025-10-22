@@ -172,11 +172,15 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check for a year filter from the query parameters.
+	yearStr := r.URL.Query().Get("year")
+	year, _ := strconv.Atoi(yearStr) // Atoi returns 0 on error, which we use to mean "no filter".
+
 	// Define the number of photos per page for the initial load.
 	const initialLimit = 50
 
 	// Get the first page of photos.
-	photos, err := getPhotos(username, initialLimit, 0)
+	photos, err := getPhotos(username, year, initialLimit, 0)
 	if err != nil {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
@@ -184,7 +188,8 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get the total number of photos for the frontend to know when to stop loading.
-	totalPhotos, err := getTotalPhotoCount(username)
+	// The count must also be filtered by year.
+	totalPhotos, err := getTotalPhotoCount(username, year)
 	if err != nil {
 		log.Printf("Error getting total photo count: %v", err)
 		totalPhotos = 0 // Default to 0 on error
@@ -204,12 +209,14 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		Photos      []PhotoMetadata
 		TotalPhotos int
 		Limit       int
+		FilterYear  int
 		Years       []int
 	}{
 		Username:    username,
 		Photos:      photos,
 		TotalPhotos: totalPhotos,
 		Limit:       initialLimit,
+		FilterYear:  year,
 		Years:       years,
 	}
 
@@ -245,6 +252,7 @@ func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 	// Parse query parameters for pagination
 	pageStr := r.URL.Query().Get("page")
 	limitStr := r.URL.Query().Get("limit")
+	yearStr := r.URL.Query().Get("year")
 
 	page, err := strconv.Atoi(pageStr)
 	if err != nil || page < 1 {
@@ -256,11 +264,13 @@ func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 		limit = 50 // Default limit
 	}
 
+	year, _ := strconv.Atoi(yearStr)
+
 	// Calculate offset
 	offset := (page - 1) * limit
 
 	// Retrieve photos from the database
-	photos, err := getPhotos(username, limit, offset)
+	photos, err := getPhotos(username, year, limit, offset)
 	if err != nil {
 		log.Printf("Error getting photos for API: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

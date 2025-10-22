@@ -144,9 +144,8 @@ func initPhotosDB() {
 }
 
 // getPhotos retrieves a paginated list of photos.
-func getPhotos(username string, limit, offset int) ([]PhotoMetadata, error) {
-	rows, err := photosDB.Query(`
-        SELECT 
+func getPhotos(username string, year, limit, offset int) ([]PhotoMetadata, error) {
+	query := `SELECT 
             id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
             make, model, image_description, image_width, image_length, x_resolution, y_resolution,
             resolution_unit, orientation, software, date_time, artist, copyright,
@@ -157,14 +156,22 @@ func getPhotos(username string, limit, offset int) ([]PhotoMetadata, error) {
             gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
         FROM photos
         WHERE uploaded_by = ?
-        ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC
-        LIMIT ?
-        OFFSET ?
-    `, username, limit, offset)
+    `
+	args := []interface{}{username}
 
+	if year > 0 {
+		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		args = append(args, year)
+	}
+
+	query += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+
+	rows, err := photosDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
+
 	defer rows.Close()
 
 	var photos []PhotoMetadata
@@ -189,9 +196,17 @@ func getPhotos(username string, limit, offset int) ([]PhotoMetadata, error) {
 }
 
 // getTotalPhotoCount returns the total number of photos in the database.
-func getTotalPhotoCount(username string) (int, error) {
+func getTotalPhotoCount(username string, year int) (int, error) {
 	var count int
-	err := photosDB.QueryRow("SELECT COUNT(*) FROM photos WHERE uploaded_by = ?", username).Scan(&count)
+	query := "SELECT COUNT(*) FROM photos WHERE uploaded_by = ?"
+	args := []interface{}{username}
+
+	if year > 0 {
+		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		args = append(args, year)
+	}
+
+	err := photosDB.QueryRow(query, args...).Scan(&count)
 	if err != nil {
 		return 0, err
 	}

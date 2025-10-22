@@ -253,6 +253,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const username = photoGallery.dataset.username;
         let currentPage = 1;
         const limit = parseInt(photoGallery.dataset.limit, 10) || 50;
+        const filterYear = parseInt(photoGallery.dataset.filterYear, 10) || 0;
         const totalPhotos = parseInt(photoGallery.dataset.totalPhotos, 10);
         let isLoading = false;
 
@@ -260,6 +261,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
         function createPhotoElement(photo) {
             const photoItem = document.createElement('div');
             photoItem.className = 'photo-item';
+
+            // Determine year for the data-year attribute
+            let photoYear = new Date(photo.UploadedAt).getFullYear();
+            if (photo.DateTimeOriginal && photo.DateTimeOriginal.Valid) {
+                photoYear = new Date(photo.DateTimeOriginal.Time).getFullYear();
+            } else if (photo.DateTime && photo.DateTime.Valid) {
+                photoYear = new Date(photo.DateTime.Time).getFullYear();
+            }
+            photoItem.dataset.year = photoYear;
 
             const thumbPath = `/media/${username}/thumbs/${photo.Filepath}.webp`;
             const previewPath = `/media/${username}/previews/${photo.Filepath}`;
@@ -288,7 +298,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
             isLoading = true;
             currentPage++;
 
-            fetch(`/api/photos?page=${currentPage}&limit=${limit}`)
+            let apiUrl = `/api/photos?page=${currentPage}&limit=${limit}`;
+            if (filterYear > 0) {
+                apiUrl += `&year=${filterYear}`;
+            }
+
+            fetch(apiUrl)
                 .then(response => response.json())
                 .then(photos => {
                     if (photos && photos.length > 0) {
@@ -310,6 +325,21 @@ document.addEventListener('DOMContentLoaded', (event) => {
             // Check if user has scrolled to the bottom of the page (with a 250px buffer)
             if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight - 250) {
                 loadMorePhotos();
+            }
+        });
+    }
+
+    /* Year Bar Logic */
+    const yearBar = document.querySelector('.year-bar');
+    if (yearBar) {
+        yearBar.addEventListener('click', (event) => {
+            if (event.target.matches('.year-link')) {
+                // Don't prevent default for the "All" link
+                if (event.target.dataset.year) {
+                    event.preventDefault();
+                    const year = event.target.dataset.year;
+                    window.location.href = `/gallery?year=${year}`;
+                }
             }
         });
     }
