@@ -1,7 +1,7 @@
 body {
     font-family: 'Open Sans', sans-serif;
     margin: 0; /* Reset default body margin */
-    padding-top: 60px; /* Add padding to body to avoid content being hidden by fixed nav */
+    padding-top: 100px; /* Adjust padding for main nav + year bar */
 }
 .photo-gallery {
     display: flex;
@@ -130,6 +130,28 @@ body {
 }
 .top-nav-right {
     float: right;
+}
+
+/* Year Bar Styles */
+.year-bar {
+    position: fixed;
+    top: 50px; /* Position it directly below the main nav */
+    left: 0;
+    width: 100%;
+    background-color: #f1f1f1;
+    border-bottom: 1px solid #ddd;
+    padding: 5px 10px;
+    box-sizing: border-box;
+    z-index: 998; /* Below main nav, above content */
+    white-space: nowrap;
+    overflow-x: auto;
+}
+.year-bar a {
+    display: inline-block;
+    color: #333;
+    text-align: center;
+    padding: 5px 10px;
+    text-decoration: none;
 }
 
 /* Selection Action Bar Styles */

@@ -233,6 +233,33 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 	return p, nil
 }
 
+// getDistinctYears retrieves a sorted list of distinct years for a user's photos.
+func getDistinctYears(username string) ([]int, error) {
+	// Use COALESCE to find the best available date for each photo, then extract the year.
+	// The order is: EXIF original date, EXIF modification date, then upload date.
+	rows, err := photosDB.Query(`
+		SELECT DISTINCT CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) as year
+		FROM photos
+		WHERE uploaded_by = ? 
+		AND year IS NOT NULL
+		ORDER BY year ASC
+	`, username)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var years []int
+	for rows.Next() {
+		var year int
+		if err := rows.Scan(&year); err != nil {
+			return nil, err
+		}
+		years = append(years, year)
+	}
+	return years, rows.Err()
+}
+
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
 func getAllPhotos(username string) ([]PhotoMetadata, error) {
 	rows, err := photosDB.Query(`SELECT id, filename, filepath, uploaded_by FROM photos WHERE uploaded_by = ? ORDER BY id`, username)

@@ -24,6 +24,14 @@
 		</div>
 	</div>
 
+	{{if .Years}}
+	<div class="year-bar">
+		{{range .Years}}
+			<a href="#">{{.}}</a>
+		{{end}}
+	</div>
+	{{end}}
+
 	<h2 style="padding-left: 1em;">Recent Uploads</h2>
 	{{if .Photos}}
 		<div class="photo-gallery" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}">

@@ -190,17 +190,27 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		totalPhotos = 0 // Default to 0 on error
 	}
 
+	// Get distinct years for the year bar
+	years, err := getDistinctYears(username)
+	if err != nil {
+		log.Printf("Error getting distinct years: %v", err)
+		// Don't fail the request, just show an empty year bar
+		years = []int{}
+	}
+
 	// Create a struct to hold all the data for the template
 	data := struct {
 		Username    string
 		Photos      []PhotoMetadata
 		TotalPhotos int
 		Limit       int
+		Years       []int
 	}{
 		Username:    username,
 		Photos:      photos,
 		TotalPhotos: totalPhotos,
 		Limit:       initialLimit,
+		Years:       years,
 	}
 
 	// Execute the "gallery.html" template and pass the data.
