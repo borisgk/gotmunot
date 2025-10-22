@@ -74,6 +74,9 @@ func main() {
 
 	// API for single photo operations (e.g., DELETE)
 	http.HandleFunc("/api/photo/", photoActionHandler)
+	// API for batch photo operations
+	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
+	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
 	// Serve static files from the "static" directory.
 	fs := http.FileServer(http.Dir("static"))
 	http.Handle("/static/", http.StripPrefix("/static/", fs))
@@ -319,7 +322,7 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 
 func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) {
 	// 1. Get photo metadata from DB to find its filepath.
-	photo, err := getPhotoByFilename(filename)
+	err := deletePhoto(filename)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Photo not found", http.StatusNotFound)
@@ -328,6 +331,107 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) 
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 		}
 		return
+	}
+
+	log.Printf("Successfully deleted photo '%s' and its associated files.", filename)
+	w.WriteHeader(http.StatusNoContent) // 204 No Content is a good response for a successful DELETE.
+}
+
+func batchDeletePhotosHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Authenticate user
+	if _, ok := isValidSession(db, r); !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Ensure method is POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 3. Decode JSON body
+	var payload struct {
+		Filenames []string `json:"filenames"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Iterate and delete each photo
+	// We'll collect errors but not stop on the first one.
+	var errors []string
+	for _, filename := range payload.Filenames {
+		if err := deletePhoto(filename); err != nil {
+			log.Printf("Failed to delete photo %s during batch operation: %v", filename, err)
+			errors = append(errors, fmt.Sprintf("Failed to delete %s: %v", filename, err.Error()))
+		}
+	}
+
+	// 5. Respond
+	if len(errors) > 0 {
+		http.Error(w, fmt.Sprintf("Completed with %d errors. See logs for details.", len(errors)), http.StatusMultiStatus)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent) // All successful
+}
+
+func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Authenticate user
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Ensure method is POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 3. Decode JSON body
+	var payload struct {
+		Filenames []string `json:"filenames"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Iterate and start regeneration in goroutines
+	for _, filename := range payload.Filenames {
+		go func(fname string) {
+			photo, err := getPhotoByFilename(fname)
+			if err != nil {
+				log.Printf("Failed to find photo '%s' for regeneration: %v", fname, err)
+				return
+			}
+
+			// Ensure the user owns this photo before regenerating
+			if photo.UploadedBy != username {
+				log.Printf("Security alert: User '%s' attempted to regenerate photo '%s' owned by '%s'", username, fname, photo.UploadedBy)
+				return
+			}
+
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
+			createThumbnail(originalPath, photo.UploadedBy)
+			createPreview(originalPath, photo.UploadedBy)
+		}(filename)
+	}
+
+	// 5. Respond immediately
+	w.WriteHeader(http.StatusAccepted) // 202 Accepted is a good response for starting a background task.
+}
+
+// deletePhoto contains the core logic to delete a single photo and its files.
+func deletePhoto(filename string) error {
+	// Get photo metadata from DB to find its filepath.
+	photo, err := getPhotoByFilename(filename)
+	if err != nil {
+		return err // Propagate error (e.g., sql.ErrNoRows)
 	}
 
 	// 2. Construct paths for all three files.
@@ -349,12 +453,9 @@ func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) 
 	// 4. Delete the database record.
 	if err := deletePhotoByFilename(filename); err != nil {
 		log.Printf("Error deleting photo record for %s: %v", filename, err)
-		http.Error(w, "Error deleting photo from database", http.StatusInternalServerError)
-		return
+		return fmt.Errorf("error deleting photo from database: %w", err)
 	}
-
-	log.Printf("Successfully deleted photo '%s' and its associated files.", filename)
-	w.WriteHeader(http.StatusNoContent) // 204 No Content is a good response for a successful DELETE.
+	return nil
 }
 
 func servicePageHandler(w http.ResponseWriter, r *http.Request) {
