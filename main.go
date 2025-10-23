@@ -235,6 +235,13 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		totalPhotos = 0 // Default to 0 on error
 	}
 
+	// Get total count for the "All" link, regardless of year filter.
+	allPhotosCount, err := getTotalPhotoCount(username, 0)
+	if err != nil {
+		log.Printf("Error getting total count for 'All' photos: %v", err)
+		allPhotosCount = 0
+	}
+
 	// Get photo counts for the year bar
 	photoCounts, err := getPhotoCountsByYear(username)
 	if err != nil {
@@ -254,6 +261,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		Username    string
 		DayGroups   []DayGroup
 		TotalPhotos int
+		AllPhotosCount int
 		Limit       int
 		FilterYear  int
 		Years       []int
@@ -261,6 +269,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	}{
 		Username:    username,
 		DayGroups:   dayGroups,
+		AllPhotosCount: allPhotosCount,
 		TotalPhotos: totalPhotos,
 		Limit:       initialLimit,
 		FilterYear:  year,

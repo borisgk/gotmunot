@@ -28,7 +28,7 @@
 
 	{{if .Years}}
 	<div class="year-bar">
-		<a href="/gallery" class="year-link">All</a>
+		<a href="/gallery" class="year-link">All<sup>{{.AllPhotosCount}}</sup></a>
 		{{range .Years}}
 			{{$year := .}}
 			{{$count := index $.PhotoCounts $year}}
