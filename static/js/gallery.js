@@ -159,24 +159,98 @@ document.addEventListener('DOMContentLoaded', (event) => {
         window.location.href = `/api/photos/download-previews?${query.toString()}`;
     });
 
-    document.getElementById('download-originals-btn').addEventListener('click', function(event) {
+    document.getElementById('download-originals-btn').addEventListener('click', async function(event) {
         event.preventDefault(); // Prevent link navigation
         document.getElementById('selection-dropdown').classList.remove('show');
 
         const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
         const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
 
-        if (filenames.length === 0) {
-            alert('No photos selected for download.');
-            return;
-        }
+        if (filenames.length === 0) { return; }
 
-        // Construct the URL with filenames as query parameters.
-        const query = new URLSearchParams();
-        filenames.forEach(name => query.append('filename', name));
-        
-        // Redirect the browser to trigger the download.
-        window.location.href = `/api/photos/download-originals?${query.toString()}`;
+        // Show the progress modal
+        const progressModal = document.getElementById('progress-modal');
+        const progressTitle = document.getElementById('progress-title');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const cancelBtn = document.getElementById('progress-cancel-btn');
+
+        progressTitle.textContent = 'Preparing Download...';
+        progressText.textContent = 'Starting zip process...';
+        progressBar.style.width = '0%';
+        progressModal.style.display = 'block';
+
+        try {
+            let pollInterval; // Define here to be accessible in the cancel handler
+            let isCancelled = false;
+
+            // 1. Start the download task
+            const startResponse = await fetch('/api/downloads/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filenames: filenames, type: 'originals' }),
+            });
+
+            if (!startResponse.ok) {
+                throw new Error('Failed to start download process.');
+            }
+
+            const { task_id } = await startResponse.json();
+
+            // Handle cancellation
+            cancelBtn.onclick = async () => {
+                isCancelled = true;
+                clearInterval(pollInterval);
+                await fetch(`/api/downloads/cancel?id=${task_id}`, { method: 'POST' });
+                progressModal.style.display = 'none';
+            };
+
+            // 2. Poll for status
+            pollInterval = setInterval(async () => {
+                // Stop polling if the user has cancelled
+                if (isCancelled) {
+                    clearInterval(pollInterval);
+                    return;
+                }
+                try {
+                    const statusResponse = await fetch(`/api/downloads/status?id=${task_id}`);
+                    if (!statusResponse.ok) {
+                        // Stop polling if task not found (e.g., server restarted)
+                        throw new Error('Task not found.');
+                    }
+
+                    const progress = await statusResponse.json();
+
+                    // Update modal UI
+                    const percent = progress.total > 0 ? (progress.processed / progress.total) * 100 : 0;
+                    progressBar.style.width = `${percent}%`;
+                    progressText.textContent = `Processing ${progress.processed || 0} of ${progress.total || 0}: ${progress.filename || ''}`;
+
+                    if (progress.error) {
+                        throw new Error(progress.error);
+                    }
+
+                    // 3. When complete, trigger download and close modal
+                    if (progress.complete && progress.download_url && !progress.cancelled) {
+                        clearInterval(pollInterval);
+                        progressTitle.textContent = 'Download Ready!';
+                        progressText.textContent = 'Your download will begin shortly...';
+                        window.location.href = progress.download_url;
+                        // Close modal after a short delay
+                        setTimeout(() => {
+                            progressModal.style.display = 'none';
+                        }, 3000);
+                    }
+                } catch (pollError) {
+                    clearInterval(pollInterval);
+                    alert(`An error occurred: ${pollError.message}`);
+                    progressModal.style.display = 'none';
+                }
+            }, 750); // Poll every 0.75 seconds
+        } catch (startError) {
+            alert(`Could not start download: ${startError.message}`);
+            progressModal.style.display = 'none';
+        }
     });
 
 

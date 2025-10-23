@@ -86,7 +86,7 @@
                 .then(data => {
                     const elements = { button: regenerateBtn, container: progressContainer, bar: progressBar, status: progressStatus };
                     if (data.task_id) {
-                        pollingInterval = setInterval(() => pollStatus(data.task_id, elements), 1500);
+                        pollingInterval = setInterval(() => pollStatus(data.task_id, elements), 750);
                     }
                 });
         });
@@ -114,7 +114,7 @@
                 .then(data => {
                     const elements = { button: regeneratePreviewsBtn, container: previewsProgressContainer, bar: previewsProgressBar, status: previewsProgressStatus };
                     if (data.task_id) {
-                        previewsPollingInterval = setInterval(() => pollStatus(data.task_id, elements), 1500);
+                        previewsPollingInterval = setInterval(() => pollStatus(data.task_id, elements), 750);
                     }
                 });
         });

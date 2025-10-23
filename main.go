@@ -25,11 +25,13 @@ type User struct {
 
 // TaskProgress holds the state of a long-running task.
 type TaskProgress struct {
-	Processed int    `json:"processed"`
-	Total     int    `json:"total"`
-	Filename  string `json:"filename"`
+	Processed int    `json:"processed,omitempty"`
+	Total     int    `json:"total,omitempty"`
+	Filename  string `json:"filename,omitempty"`
 	Complete  bool   `json:"complete"`
 	Error     string `json:"error,omitempty"`
+	Cancelled bool   `json:"cancelled,omitempty"`
+	DownloadURL string `json:"download_url,omitempty"`
 }
 
 // taskProgressMap safely stores the progress of multiple concurrent tasks.
@@ -80,7 +82,11 @@ func main() {
 	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
 	// API for downloading zipped previews
 	http.HandleFunc("/api/photos/download-previews", downloadPreviewsHandler)
-	http.HandleFunc("/api/photos/download-originals", downloadOriginalsHandler)
+	// API for async downloads
+	http.HandleFunc("/api/downloads/start", startDownloadHandler)
+	http.HandleFunc("/api/downloads/status", getDownloadStatusHandler)
+	http.HandleFunc("/api/downloads/cancel", cancelDownloadHandler)
+	http.HandleFunc("/api/downloads/file", serveDownloadHandler)
 
 	// Serve static files (CSS, JS, etc.)
 	http.Handle("/static/css/", http.StripPrefix("/static/css/", http.FileServer(http.Dir("static/css"))))

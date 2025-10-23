@@ -157,6 +157,36 @@ body {
     border-bottom: 1px solid #ddd;
 }
 
+/* Progress Bar Styles */
+.progress-bar-container {
+    width: 100%;
+    background-color: #e0e0e0;
+    border-radius: 4px;
+    margin-top: 1em;
+}
+.progress-bar {
+    width: 0%;
+    height: 20px;
+    background-color: #007bff;
+    border-radius: 4px;
+    text-align: center;
+    line-height: 20px;
+    color: white;
+    transition: width 0.3s ease-in-out;
+}
+.cancel-btn {
+    margin-top: 1em;
+    padding: 8px 16px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+.cancel-btn:hover {
+    background-color: #d32f2f;
+}
+
 /* Navigation Bar Styles */
 .top-nav {
     background-color: #333;
