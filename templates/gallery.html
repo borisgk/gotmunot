@@ -93,5 +93,35 @@
 			<button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
 		</div>
 	</div>
+
+	<!-- The Login Modal -->
+	<div id="login-modal" class="info-modal">
+		<div class="info-modal-content">
+			<h3>Session Expired</h3>
+			<p>Your session has expired. Please log in again to continue.</p>
+			<form id="modal-login-form">
+				<label for="modal-username">Username:</label><br>
+				<input type="text" id="modal-username" name="username" required><br>
+				<label for="modal-password">Password:</label><br>
+				<input type="password" id="modal-password" name="password" required><br><br>
+				<input type="submit" value="Login">
+			</form>
+			<p id="login-modal-error" style="color: red;"></p>
+		</div>
+	</div>
+
+	{{if .ShowPreview}}
+	<script>
+		// This script runs if the server wants to show a specific preview on page load.
+		document.addEventListener('DOMContentLoaded', () => {
+			// Find the photo item using the unique filename.
+			const photoItem = document.querySelector(`.photo-item input[data-filename="{{.ShowPreview}}"]`);
+			if (photoItem) {
+				// Trigger a click on its lightbox anchor to open the preview.
+				photoItem.closest('.photo-item').querySelector('.lightbox-trigger').click();
+			}
+		});
+	</script>
+	{{end}}
 </body>
 </html>

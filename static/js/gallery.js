@@ -298,8 +298,43 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Handle lightbox trigger clicks
         if (event.target.closest('.lightbox-trigger')) {
             event.preventDefault();
-            lightbox.style.display = "block";
-            lightbox.querySelector('#lightbox-img').src = event.target.closest('.lightbox-trigger').dataset.preview;
+            const previewUrl = event.target.closest('.lightbox-trigger').dataset.preview;
+
+            // Fetch the image first to check for redirects (e.g., to login page)
+            fetch(previewUrl, { redirect: 'manual' }) // Important: 'manual' prevents auto-following redirects
+                .then(response => {
+                    // A response type of 'opaqueredirect' indicates a cross-origin redirect,
+                    // which we can't inspect further. A 401 status is a clearer signal.
+                    if (response.status === 401) {
+                        // The session has expired. Show the login modal.
+                        const loginModal = document.getElementById('login-modal');
+                        const loginForm = document.getElementById('modal-login-form');
+                        const errorP = document.getElementById('login-modal-error');
+                        errorP.textContent = ''; // Clear previous errors
+                        loginModal.style.display = 'block';
+
+                        loginForm.onsubmit = async (e) => {
+                            e.preventDefault();
+                            const formData = new FormData(loginForm);
+                            const response = await fetch('/api/login', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                credentials: 'include', // Important: This tells fetch to handle cookies
+                                body: JSON.stringify(Object.fromEntries(formData)),
+                            });
+                            if (response.ok) {
+                                loginModal.style.display = 'none';
+                            } else {
+                                errorP.textContent = 'Login failed. Please try again.';
+                            }
+                        };
+                    } else {
+                        // If the response is OK, show the lightbox.
+                        lightbox.style.display = "block";
+                        lightbox.querySelector('#lightbox-img').src = previewUrl;
+                    }
+                })
+                .catch(error => console.error('Error checking preview URL:', error));
         }
 
         // Handle menu button clicks

@@ -78,6 +78,8 @@ func main() {
 	// API for single photo operations (e.g., DELETE)
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
+	// API for login
+	http.HandleFunc("/api/login", apiLoginHandler)
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
 	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
 	// API for downloading zipped previews
@@ -96,6 +98,8 @@ func main() {
 	http.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) {
 		sessionUser, ok := isValidSession(db, r)
 		if !ok {
+			// If the session is invalid, redirect to the login page,
+			// Return an unauthorized error, which the frontend will catch.
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -123,7 +127,11 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		// Display the login form
-		err := tmpl.ExecuteTemplate(w, "login.html", nil)
+		redirectURL := r.URL.Query().Get("redirect_url")
+		data := struct {
+			RedirectURL string
+		}{RedirectURL: redirectURL}
+		err := tmpl.ExecuteTemplate(w, "login.html", data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
@@ -167,8 +175,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			HttpOnly: true, // Important for security
 		})
 
-		// Redirect to a secure area
-		http.Redirect(w, r, "/gallery", http.StatusSeeOther)
+		// After successful login, check if there's a redirect URL.
+		redirectURL := r.FormValue("redirect_url")
+		if redirectURL != "" {
+			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
+		} else {
+			// Otherwise, redirect to the default gallery page.
+			http.Redirect(w, r, "/gallery", http.StatusSeeOther)
+		}
 
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
@@ -188,6 +202,9 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
 	}
+
+	// Check if we need to show a specific preview after login.
+	showPreview := r.URL.Query().Get("show_preview")
 
 	// Check for a year filter from the query parameters.
 	yearStr := r.URL.Query().Get("year")
@@ -262,6 +279,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		DayGroups   []DayGroup
 		TotalPhotos int
 		AllPhotosCount int
+		ShowPreview string
 		Limit       int
 		FilterYear  int
 		Years       []int
@@ -270,6 +288,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		Username:    username,
 		DayGroups:   dayGroups,
 		AllPhotosCount: allPhotosCount,
+		ShowPreview: showPreview,
 		TotalPhotos: totalPhotos,
 		Limit:       initialLimit,
 		FilterYear:  year,
@@ -499,6 +518,56 @@ func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 5. Respond immediately
 	w.WriteHeader(http.StatusAccepted) // 202 Accepted is a good response for starting a background task.
+}
+
+func apiLoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var creds struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Retrieve user from the database.
+	var user User
+	err := db.QueryRow("SELECT id, username, password FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.Username, &user.Password)
+	if err != nil {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Check the password.
+	if !checkPasswordHash(creds.Password, user.Password) {
+		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
+		return
+	}
+
+	// Create a session
+	sessionToken := generateSessionToken()
+	err = createSession(db, sessionToken, user.Username)
+	if err != nil {
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		return
+	}
+
+	// Set a session cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    sessionToken,
+		Expires:  time.Now().Add(15 * time.Minute),
+		Path:     "/", // Set cookie for the whole site
+		HttpOnly: true,
+	})
+
+	w.WriteHeader(http.StatusOK)
 }
 
 // deletePhoto contains the core logic to delete a single photo and its files.
