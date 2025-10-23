@@ -85,6 +85,24 @@
 		</div>
 	</div>
 
+	<!-- The Change Date Modal -->
+	<div id="change-date-modal" class="info-modal">
+		<div class="info-modal-content">
+			<span class="close">&times;</span>
+			<h3>Change Photo Date</h3>
+			<p>Current date: <strong id="current-date-display"></strong></p>
+			<form id="change-date-form">
+				<input type="hidden" id="change-date-filename">
+				<label for="new-date-input">New date and time:</label>
+				<input type="datetime-local" id="new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
+				<div style="margin-top: 1.5em; text-align: right;">
+					<button type="button" id="change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
+					<button type="submit" id="change-date-ok-btn">OK</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
 	<!-- The Progress Modal -->
 	<div id="progress-modal" class="info-modal">
 		<div class="info-modal-content">

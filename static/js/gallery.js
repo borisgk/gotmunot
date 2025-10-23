@@ -27,6 +27,54 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     }
 
+    /* --- Change Date Modal Logic --- */
+    const changeDateModal = document.getElementById('change-date-modal');
+    if (changeDateModal) {
+        const changeDateModalCloseBtn = changeDateModal.querySelector('.close');
+        const changeDateCancelBtn = document.getElementById('change-date-cancel-btn');
+        const changeDateForm = document.getElementById('change-date-form');
+
+        // Function to close the modal
+        const closeChangeDateModal = () => {
+            changeDateModal.style.display = 'none';
+        };
+
+        changeDateModalCloseBtn.onclick = closeChangeDateModal;
+        changeDateCancelBtn.onclick = closeChangeDateModal;
+
+        // Placeholder for form submission
+        changeDateForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const filename = document.getElementById('change-date-filename').value;
+            const newDate = document.getElementById('new-date-input').value;
+
+            try {
+                const response = await fetch('/api/photo/update-date', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        filename: filename,
+                        new_date: newDate,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to update date: ${errorText}`);
+                }
+
+                // On success, close the modal and reload the page to see the change.
+                closeChangeDateModal();
+                window.location.reload();
+
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    }
+
     /* --- Selection & Action Bar Logic --- */
     const selectionBar = document.getElementById('selection-bar');
     const selectionCount = document.getElementById('selection-count');
@@ -409,10 +457,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
         if (event.target.matches('.change-date-btn')) {
             event.preventDefault();
             // Hide the dropdown menu
-            event.target.closest('.dropdown-content').classList.remove('show');
+            const dropdown = event.target.closest('.dropdown-content');
+            if (dropdown) dropdown.classList.remove('show');
+
             const filename = event.target.closest('.photo-item').querySelector('.photo-menu-btn').dataset.filename;
-            // Placeholder action
-            alert(`"Change date" for ${filename} is not yet implemented.`);
+
+            // Fetch current date and open modal
+            openChangeDateModal(filename);
         }
 
         // Handle "Delete" button clicks
@@ -455,5 +506,42 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 }
             }
         });
+    }
+
+    async function openChangeDateModal(filename) {
+        const modal = document.getElementById('change-date-modal');
+        const currentDateDisplay = document.getElementById('current-date-display');
+        const newDateInput = document.getElementById('new-date-input');
+        const filenameInput = document.getElementById('change-date-filename');
+
+        try {
+            const response = await fetch(`/photo/info/${filename}`);
+            if (!response.ok) throw new Error('Failed to fetch photo info');
+            const data = await response.json();
+
+            // Determine the best available date
+            let currentDate = new Date(data.UploadedAt);
+            if (data.DateTimeOriginal && !data.DateTimeOriginal.startsWith('0001-01-01')) {
+                currentDate = new Date(data.DateTimeOriginal);
+            } else if (data.DateTime && !data.DateTime.startsWith('0001-01-01')) {
+                currentDate = new Date(data.DateTime);
+            }
+
+            // Format for display
+            currentDateDisplay.textContent = currentDate.toLocaleString();
+
+            // Format for the datetime-local input (YYYY-MM-DDTHH:MM)
+            // We need to adjust for the timezone offset to pre-fill correctly.
+            const timezoneOffset = currentDate.getTimezoneOffset() * 60000; //offset in milliseconds
+            const localISOTime = new Date(currentDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
+            newDateInput.value = localISOTime;
+
+            filenameInput.value = filename;
+            modal.style.display = 'block';
+
+        } catch (error) {
+            console.error('Error opening change date modal:', error);
+            alert('Could not load photo information to change date.');
+        }
     }
 });

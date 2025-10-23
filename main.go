@@ -69,6 +69,7 @@ func main() {
 	// API for single photo operations (e.g., DELETE)
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
+	http.HandleFunc("/api/photo/update-date", updatePhotoDateHandler)
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
@@ -280,8 +281,6 @@ func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	println(photoData.Filename, photoData.Artist)
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(photoData)
 }
@@ -307,6 +306,56 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Authenticate user
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Ensure method is POST
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// 3. Decode JSON body
+	var payload struct {
+		Filename string `json:"filename"`
+		NewDate  string `json:"new_date"` // Expecting "YYYY-MM-DDTHH:MM"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Parse the new date string
+	newDate, err := time.Parse("2006-01-02T15:04", payload.NewDate)
+	if err != nil {
+		http.Error(w, "Invalid date format. Please use YYYY-MM-DDTHH:MM.", http.StatusBadRequest)
+		return
+	}
+
+	// 5. Call the core logic function
+	err = updatePhotoDateAndPath(payload.Filename, username, newDate)
+	if err != nil {
+		if err.Error() == "forbidden" {
+			http.Error(w, "Forbidden", http.StatusForbidden)
+		} else if err == sql.ErrNoRows {
+			http.Error(w, "Photo not found", http.StatusNotFound)
+		} else {
+			log.Printf("Error updating photo date for %s: %v", payload.Filename, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// 6. Respond with success
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
 func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) {

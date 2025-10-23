@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"database/sql"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -327,6 +329,79 @@ func deletePhotoByFilename(filename string) error {
 		return err
 	}
 	return nil
+}
+
+// updatePhotoDateAndPath moves a photo's files to a new directory structure based on a new date
+// and updates its metadata in the database within a single transaction.
+func updatePhotoDateAndPath(filename, username string, newDate time.Time) error {
+	// Get current photo metadata to know the old path and verify ownership.
+	photo, err := getPhotoByFilename(filename)
+	if err != nil {
+		return err // Propagate sql.ErrNoRows or other DB errors.
+	}
+
+	// Security check: ensure the user owns the photo.
+	if photo.UploadedBy != username {
+		return errors.New("forbidden")
+	}
+
+	// --- Calculate new paths ---
+	year := newDate.Format("2006")
+	month := newDate.Format("01")
+	day := newDate.Format("02")
+	newRelativePath := filepath.Join(year, month, day, filename)
+
+	// If the path hasn't changed, we only need to update the date in the DB.
+	if newRelativePath == photo.Filepath {
+		_, err := photosDB.Exec("UPDATE photos SET date_time_original = ? WHERE filename = ?", newDate, filename)
+		return err
+	}
+
+	// --- Prepare file paths for moving ---
+	baseUploadDir := filepath.Join(AppConfig.PhotoUploadDir, username)
+	// Old paths
+	oldOriginalPath := filepath.Join(baseUploadDir, "originals", photo.Filepath)
+	oldPreviewPath := filepath.Join(baseUploadDir, "previews", photo.Filepath)
+	oldThumbPath := filepath.Join(baseUploadDir, "thumbs", photo.Filepath+".webp")
+	// New paths
+	newOriginalPath := filepath.Join(baseUploadDir, "originals", newRelativePath)
+	newPreviewPath := filepath.Join(baseUploadDir, "previews", newRelativePath)
+	newThumbPath := filepath.Join(baseUploadDir, "thumbs", newRelativePath+".webp")
+
+	// --- Perform file move and DB update in a transaction ---
+	tx, err := photosDB.Begin()
+	if err != nil {
+		return err
+	}
+	// Defer a rollback in case of error.
+	defer tx.Rollback()
+
+	// 1. Update the database record with the new date and path.
+	stmt, err := tx.Prepare("UPDATE photos SET date_time_original = ?, filepath = ? WHERE filename = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	if _, err := stmt.Exec(newDate, newRelativePath, filename); err != nil {
+		return err
+	}
+
+	// 2. Move the files on the filesystem.
+	// Create the destination directories first.
+	if err := os.MkdirAll(filepath.Dir(newOriginalPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(newPreviewPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(newThumbPath), 0755); err != nil { return err }
+
+	// Rename/move the files.
+	if err := os.Rename(oldOriginalPath, newOriginalPath); err != nil { return err }
+	if err := os.Rename(oldPreviewPath, newPreviewPath); err != nil { return err }
+	if err := os.Rename(oldThumbPath, newThumbPath); err != nil { return err }
+
+	// TODO: Optionally, clean up old empty directories. This is a non-trivial task
+	// and can be skipped for now.
+
+	// 3. If all operations succeeded, commit the transaction.
+	return tx.Commit()
 }
 
 // scanPhoto is a helper to scan a photo row into a PhotoMetadata struct.
