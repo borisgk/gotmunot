@@ -405,6 +405,16 @@ document.addEventListener('DOMContentLoaded', (event) => {
             showPhotoInfo(filename);
         }
 
+        // Handle "Change date" button clicks
+        if (event.target.matches('.change-date-btn')) {
+            event.preventDefault();
+            // Hide the dropdown menu
+            event.target.closest('.dropdown-content').classList.remove('show');
+            const filename = event.target.closest('.photo-item').querySelector('.photo-menu-btn').dataset.filename;
+            // Placeholder action
+            alert(`"Change date" for ${filename} is not yet implemented.`);
+        }
+
         // Handle "Delete" button clicks
         if (event.target.matches('.delete-btn')) {
             event.preventDefault();
