@@ -53,6 +53,25 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
             updateSelectionBar();
         }
+
+        // Handle "select all for day" checkbox clicks
+        if (event.target.matches('.day-select-checkbox')) {
+            const header = event.target.closest('.date-header');
+            // The photo gallery for this day is the next sibling element
+            const gallery = header.nextElementSibling;
+
+            if (gallery && gallery.classList.contains('photo-gallery')) {
+                const shouldBeChecked = event.target.checked;
+                gallery.querySelectorAll('.photo-select-checkbox').forEach(cb => {
+                    // Only trigger a change if the state is different to avoid extra work
+                    if (cb.checked !== shouldBeChecked) {
+                        cb.checked = shouldBeChecked;
+                        // Manually trigger a change event to update the visual style and selection bar
+                        cb.dispatchEvent(new Event('change', { bubbles: true }));
+                    }
+                });
+            }
+        }
     });
 
     document.getElementById('regenerate-selected-btn').addEventListener('click', function(event) {
@@ -308,36 +327,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
             return photoItem;
         }
 
-        // Function to find or create the correct gallery container for a photo
-        function getOrCreateGalleryContainer(photo) {
-            let photoDate = new Date(photo.UploadedAt);
-            if (photo.DateTimeOriginal && photo.DateTimeOriginal.Valid) {
-                photoDate = new Date(photo.DateTimeOriginal.Time);
-            } else if (photo.DateTime && photo.DateTime.Valid) {
-                photoDate = new Date(photo.DateTime.Time);
-            }
-            const photoDateStr = getDateString(photoDate.toISOString());
-
-            let lastGallery = document.querySelector('.photo-gallery:last-of-type');
-            let lastDateSeparator = document.querySelector('.date-separator:last-of-type');
-            const lastDateStr = lastDateSeparator.dataset.date;
-
-            if (photoDateStr !== lastDateStr) {
-                // Create a new header and gallery div
-                const newHeader = document.createElement('h2');
-                newHeader.className = 'date-separator';
-                newHeader.dataset.date = photoDateStr; // Set the data-date attribute
-                newHeader.textContent = formatDate(photoDateStr);
-                galleryContainer.appendChild(newHeader);
-
-                const newGallery = document.createElement('div');
-                newGallery.className = 'photo-gallery';
-                galleryContainer.appendChild(newGallery);
-                return newGallery;
-            }
-            return lastGallery;
-        }
-
         // Function to load more photos
         function loadMorePhotos() {
             // Stop if we are already loading or have loaded all photos
@@ -356,11 +345,50 @@ document.addEventListener('DOMContentLoaded', (event) => {
             fetch(apiUrl)
                 .then(response => response.json())
                 .then(photos => {
+                    // This is the new, more robust grouping logic.
+                    // It keeps track of the current group being added to.
+                    let currentGalleryGroup = document.querySelector('.photo-gallery:last-of-type');
+                    let lastDateStr = document.querySelector('.date-separator:last-of-type')?.dataset.date;
+
                     if (photos && photos.length > 0) {
                         photos.forEach(photo => {
-                            const container = getOrCreateGalleryContainer(photo);
+                            // Determine the date for the current photo
+                            let photoDate = new Date(photo.UploadedAt);
+                            if (photo.DateTimeOriginal && photo.DateTimeOriginal.Valid) {
+                                photoDate = new Date(photo.DateTimeOriginal.Time);
+                            } else if (photo.DateTime && photo.DateTime.Valid) {
+                                photoDate = new Date(photo.DateTime.Time);
+                            }
+                            const photoDateStr = getDateString(photoDate.toISOString());
+
+                            // If the photo's date is different, create a new day group
+                            if (photoDateStr !== lastDateStr) {
+                                const newHeaderDiv = document.createElement('div');
+                                newHeaderDiv.className = 'date-header';
+                                newHeaderDiv.innerHTML = `
+                                    <input type="checkbox" class="day-select-checkbox" title="Select all photos from this day">
+                                    <h2 class="date-separator" data-date="${photoDateStr}">
+                                        ${formatDate(photoDateStr)}
+                                        <span class="photo-count"></span>
+                                    </h2>
+                                `;
+                                galleryContainer.appendChild(newHeaderDiv);
+
+                                currentGalleryGroup = document.createElement('div');
+                                currentGalleryGroup.className = 'photo-gallery';
+                                galleryContainer.appendChild(currentGalleryGroup);
+                                lastDateStr = photoDateStr; // Update the last date
+                            }
                             const photoEl = createPhotoElement(photo);
-                            container.appendChild(photoEl);
+
+                            // After adding the photo, update the count in the header
+                            const header = currentGalleryGroup.previousElementSibling;
+                            if (header && header.classList.contains('date-header')) {
+                                let countSpan = header.querySelector('.photo-count');
+                                const currentCount = currentGalleryGroup.children.length + 1;
+                                countSpan.textContent = `(${currentCount} photos)`;
+                            }
+                            currentGalleryGroup.appendChild(photoEl);
                         });
                         loadedPhotosCount += photos.length;
                     }

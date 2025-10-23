@@ -36,10 +36,51 @@ body {
 
 /* Date Separator Heading */
 .date-separator {
-    padding-left: 1em;
-    margin: 2em 0 1em 0;
+    padding-left: 0.5em; /* Space between checkbox and text */
+    margin: 0; /* Reset margin, now handled by .date-header */
     font-weight: 400;
     color: #444;
+}
+.date-separator .photo-count {
+    font-weight: normal;
+    font-size: 0.8em;
+    color: #666;
+}
+.date-header {
+    display: flex;
+    align-items: center;
+    margin: 2em 0 1em 0;
+    padding-left: 1em;
+}
+
+.day-select-checkbox {
+    /* Reset appearance */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* Custom round style */
+    width: 24px;
+    height: 24px;
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background-color 0.2s ease-in-out;
+
+    /* For checkmark positioning */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.day-select-checkbox:checked {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+.day-select-checkbox:checked::after {
+    content: '✔';
+    color: white;
+    font-size: 14px;
 }
 
 /* Lightbox Modal Styles */

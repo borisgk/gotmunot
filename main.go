@@ -166,6 +166,13 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DayGroup is a struct to hold photos grouped by a specific date.
+type DayGroup struct {
+	Date   time.Time
+	Photos []PhotoMetadata
+	Count  int
+}
+
 func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	username, ok := isValidSession(db, r)
 	if !ok {
@@ -186,6 +193,29 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
 		photos = []PhotoMetadata{}
+	}
+
+	// Group photos by date for the template
+	var dayGroups []DayGroup
+	if len(photos) > 0 {
+		currentDateStr := ""
+		var currentGroup *DayGroup
+
+		for _, p := range photos {
+			photoDateStr := getPhotoDateString(&p)
+			if photoDateStr != currentDateStr {
+				if currentGroup != nil {
+					dayGroups = append(dayGroups, *currentGroup)
+				}
+				currentGroup = &DayGroup{Date: getPhotoTime(&p)}
+				currentDateStr = photoDateStr
+			}
+			currentGroup.Photos = append(currentGroup.Photos, p)
+			currentGroup.Count++
+		}
+		if currentGroup != nil {
+			dayGroups = append(dayGroups, *currentGroup)
+		}
 	}
 
 	// Get the total number of photos for the frontend to know when to stop loading.
@@ -213,7 +243,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	// Create a struct to hold all the data for the template
 	data := struct {
 		Username    string
-		Photos      []PhotoMetadata
+		DayGroups   []DayGroup
 		TotalPhotos int
 		Limit       int
 		FilterYear  int
@@ -221,7 +251,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		PhotoCounts map[int]int
 	}{
 		Username:    username,
-		Photos:      photos,
+		DayGroups:   dayGroups,
 		TotalPhotos: totalPhotos,
 		Limit:       initialLimit,
 		FilterYear:  year,
@@ -483,6 +513,16 @@ func deletePhoto(filename string) error {
 		return fmt.Errorf("error deleting photo from database: %w", err)
 	}
 	return nil
+}
+
+// getPhotoTime returns the most relevant time.Time for a photo.
+func getPhotoTime(p *PhotoMetadata) time.Time {
+	if p.DateTimeOriginal.Valid {
+		return p.DateTimeOriginal.Time
+	} else if p.DateTime.Valid {
+		return p.DateTime.Time
+	}
+	return p.UploadedAt
 }
 
 func servicePageHandler(w http.ResponseWriter, r *http.Request) {
