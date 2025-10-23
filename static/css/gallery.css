@@ -272,6 +272,7 @@ body {
     width: 100%;
     text-align: left; /* Override inherited center alignment */
     box-sizing: border-box;
+    white-space: nowrap;
 }
 .dropdown-content a:hover {
     background-color: #ddd;

@@ -138,6 +138,48 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
 
+    document.getElementById('download-previews-btn').addEventListener('click', function(event) {
+        event.preventDefault(); // Prevent link navigation
+        document.getElementById('selection-dropdown').classList.remove('show');
+
+        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
+        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
+
+        if (filenames.length === 0) {
+            alert('No photos selected for download.');
+            return;
+        }
+
+        // Construct the URL with filenames as query parameters.
+        // This is safe for a reasonable number of files.
+        const query = new URLSearchParams();
+        filenames.forEach(name => query.append('filename', name));
+        
+        // Redirect the browser to trigger the download.
+        window.location.href = `/api/photos/download-previews?${query.toString()}`;
+    });
+
+    document.getElementById('download-originals-btn').addEventListener('click', function(event) {
+        event.preventDefault(); // Prevent link navigation
+        document.getElementById('selection-dropdown').classList.remove('show');
+
+        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
+        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
+
+        if (filenames.length === 0) {
+            alert('No photos selected for download.');
+            return;
+        }
+
+        // Construct the URL with filenames as query parameters.
+        const query = new URLSearchParams();
+        filenames.forEach(name => query.append('filename', name));
+        
+        // Redirect the browser to trigger the download.
+        window.location.href = `/api/photos/download-originals?${query.toString()}`;
+    });
+
+
     document.getElementById('clear-selection-btn').addEventListener('click', function(event) {
         event.preventDefault(); // Prevent link navigation
         document.getElementById('selection-dropdown').classList.remove('show');
