@@ -1,6 +1,7 @@
 package main
 
 import (
+	"image"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,6 +11,9 @@ import (
 	"path/filepath"
 	"time"
 	"strings"
+
+	_ "image/jpeg" // Import for JPEG decoding
+	_ "image/png"  // Import for PNG decoding
 
 	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
@@ -100,6 +104,23 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		photoDate = exifInfo.DateTimeOriginal
 	} else if !exifInfo.DateTime.IsZero() {
 		photoDate = exifInfo.DateTime
+	}
+
+	// If EXIF data did not contain dimensions, try to get them by decoding the image config.
+	// This is efficient as it doesn't decode the whole image.
+	if exifInfo.ImageWidth == 0 || exifInfo.ImageLength == 0 {
+		// We need to rewind the file to read the header.
+		if _, err := file.Seek(0, io.SeekStart); err != nil {
+			log.Printf("Could not rewind file to read image config for %s: %v", header.Filename, err)
+		} else {
+			config, _, err := image.DecodeConfig(file)
+			if err != nil {
+				log.Printf("Could not decode image config for %s: %v", header.Filename, err)
+			} else {
+				exifInfo.ImageWidth = uint32(config.Width)
+				exifInfo.ImageLength = uint32(config.Height)
+			}
+		}
 	}
 
 	// Rewind the file reader to the beginning so it can be saved to disk
