@@ -51,10 +51,10 @@
 				</div>
 				<div class="photo-gallery">
 					{{range .Photos}}
-					<div class="photo-item" data-year="{{(or .DateTimeOriginal.Time .DateTime.Time .UploadedAt).Year}}" style='aspect-ratio: "{{.AspectRatio}}";'>
+					<div class="photo-item" data-year="{{(or .DateTimeOriginal .DateTime .UploadedAt).Year}}" width="{{.ImageWidth}}">
 						<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
 						<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
-							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" style='aspect-ratio: "{{.AspectRatio}}";' loading="lazy" width="100%">
+							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ImageWidth}}">
 						</a>
 						<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
 						<div class="dropdown-content">

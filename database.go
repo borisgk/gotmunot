@@ -21,50 +21,50 @@ type PhotoMetadata struct {
 	ContentType      string
 	UploadedBy       string
 	UploadedAt       time.Time
-	Make             sql.NullString
-	Model            sql.NullString
-	ImageDescription sql.NullString
-	ImageWidth       sql.NullInt64
-	ImageLength      sql.NullInt64
-	XResolution      sql.NullFloat64
-	YResolution      sql.NullFloat64
-	ResolutionUnit   sql.NullInt64
-	Orientation      sql.NullInt64
-	Software         sql.NullString
-	DateTime         sql.NullTime
-	Artist           sql.NullString
-	Copyright        sql.NullString
-	ExposureTime      sql.NullString
-	ExposureProgram   sql.NullInt64
-	FNumber           sql.NullFloat64
-	ISOSpeedRatings   sql.NullInt64
-	ShutterSpeedValue sql.NullString
-	ApertureValue     sql.NullFloat64
-	ExposureBiasValue sql.NullString
-	MaxApertureValue  sql.NullFloat64
-	MeteringMode      sql.NullInt64
-	LightSource       sql.NullInt64
-	Flash             sql.NullInt64
-	FocalLength           sql.NullFloat64
-	FocalLengthIn35mmFilm sql.NullInt64
-	LensMake              sql.NullString
-	LensModel             sql.NullString
-	DateTimeOriginal sql.NullTime
-	DateTimeDigitized sql.NullTime
-	SubSecTime        sql.NullString
-	GPSLat           sql.NullFloat64
-	GPSLon           sql.NullFloat64
-	GPSAltitude      sql.NullFloat64
-	GPSTimeStamp     sql.NullTime
-	GPSSpeed         sql.NullFloat64
-	GPSImgDirection  sql.NullFloat64
+	Make             string
+	Model            string
+	ImageDescription string
+	ImageWidth       int64
+	ImageLength      int64
+	XResolution      float64
+	YResolution      float64
+	ResolutionUnit   int64
+	Orientation      int64
+	Software         string
+	DateTime         time.Time
+	Artist           string
+	Copyright        string
+	ExposureTime      string
+	ExposureProgram   int64
+	FNumber           float64
+	ISOSpeedRatings   int64
+	ShutterSpeedValue string
+	ApertureValue     float64
+	ExposureBiasValue string
+	MaxApertureValue  float64
+	MeteringMode      int64
+	LightSource       int64
+	Flash             int64
+	FocalLength           float64
+	FocalLengthIn35mmFilm int64
+	LensMake              string
+	LensModel             string
+	DateTimeOriginal time.Time
+	DateTimeDigitized time.Time
+	SubSecTime        string
+	GPSLat           float64
+	GPSLon           float64
+	GPSAltitude      float64
+	GPSTimeStamp     time.Time
+	GPSSpeed         float64
+	GPSImgDirection  float64
 }
 
 // AspectRatio calculates the width/height ratio of the photo.
 // It returns a default of 3:2 if dimensions are not available.
 func (p *PhotoMetadata) AspectRatio() float64 {
-	if p.ImageWidth.Valid && p.ImageLength.Valid && p.ImageWidth.Int64 > 0 && p.ImageLength.Int64 > 0 {
-		return float64(p.ImageWidth.Int64) / float64(p.ImageLength.Int64)
+	if p.ImageWidth > 0 && p.ImageLength > 0 {
+		return float64(p.ImageWidth) / float64(p.ImageLength)
 	}
 	return 1.5 // Default to a 3:2 aspect ratio
 }
@@ -210,18 +210,7 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
         WHERE filename = ?
     `, filename)
 
-	err := row.Scan(
-		&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
-		&p.Make, &p.Model, &p.ImageDescription, &p.ImageWidth, &p.ImageLength, &p.XResolution, &p.YResolution,
-		&p.ResolutionUnit, &p.Orientation, &p.Software, &p.DateTime, &p.Artist, &p.Copyright,
-		&p.ExposureTime, &p.ExposureProgram, &p.FNumber, &p.ISOSpeedRatings, &p.ShutterSpeedValue,
-		&p.ApertureValue, &p.ExposureBiasValue, &p.MaxApertureValue, &p.MeteringMode, &p.LightSource, &p.Flash,
-		&p.FocalLength, &p.FocalLengthIn35mmFilm, &p.LensMake, &p.LensModel,
-		&p.DateTimeOriginal, &p.DateTimeDigitized, &p.SubSecTime,
-		&p.GPSLat, &p.GPSLon, &p.GPSAltitude, &p.GPSTimeStamp, &p.GPSSpeed, &p.GPSImgDirection,
-	)
-
-	if err != nil {
+	if err := scanPhoto(row, &p); err != nil {
 		return p, err
 	}
 
@@ -283,22 +272,16 @@ func getPhotoCountsByYear(username string) (map[int]int, error) {
 
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
 func getAllPhotos(username string) ([]PhotoMetadata, error) {
-	rows, err := photosDB.Query(`SELECT id, filename, filepath, uploaded_by FROM photos WHERE uploaded_by = ? ORDER BY id`, username)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var photos []PhotoMetadata
-	for rows.Next() {
-		var p PhotoMetadata
-		if err := rows.Scan(&p.ID, &p.Filename, &p.Filepath, &p.UploadedBy); err != nil {
-			return nil, err
-		}
-		photos = append(photos, p)
-	}
-
-	return photos, rows.Err()
+	query := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
+		make, model, image_description, image_width, image_length, x_resolution, y_resolution,
+		resolution_unit, orientation, software, date_time, artist, copyright,
+		exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
+		aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
+		focal_length, focal_length_in_35mm_film, lens_make, lens_model,
+		date_time_original, date_time_digitized, subsec_time,
+		gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+		FROM photos WHERE uploaded_by = ? ORDER BY id`
+	return queryPhotos(query, username)
 }
 
 // queryPhotos is a helper function to run a query and scan the results into a slice of PhotoMetadata.
@@ -348,27 +331,75 @@ func deletePhotoByFilename(filename string) error {
 
 // scanPhoto is a helper to scan a photo row into a PhotoMetadata struct.
 func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata) error {
-	return scanner.Scan(
+	// Use sql.Null types for scanning to handle potential NULL values from the database.
+	var make, model, imageDescription, software, artist, copyright, exposureTime, shutterSpeedValue, exposureBiasValue, lensMake, lensModel, subSecTime sql.NullString
+	var imageWidth, imageLength, resolutionUnit, orientation, exposureProgram, isoSpeedRatings, meteringMode, lightSource, flash, focalLengthIn35mmFilm sql.NullInt64
+	var xResolution, yResolution, fNumber, apertureValue, maxApertureValue, focalLength, gpsLat, gpsLon, gpsAltitude, gpsSpeed, gpsImgDirection sql.NullFloat64
+	var dateTime, dateTimeOriginal, dateTimeDigitized, gpsTimestamp sql.NullTime
+
+	err := scanner.Scan(
 		&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
-		&p.Make, &p.Model, &p.ImageDescription, &p.ImageWidth, &p.ImageLength, &p.XResolution, &p.YResolution,
-		&p.ResolutionUnit, &p.Orientation, &p.Software, &p.DateTime, &p.Artist, &p.Copyright,
-		&p.ExposureTime, &p.ExposureProgram, &p.FNumber, &p.ISOSpeedRatings, &p.ShutterSpeedValue,
-		&p.ApertureValue, &p.ExposureBiasValue, &p.MaxApertureValue, &p.MeteringMode, &p.LightSource, &p.Flash,
-		&p.FocalLength, &p.FocalLengthIn35mmFilm, &p.LensMake, &p.LensModel,
-		&p.DateTimeOriginal, &p.DateTimeDigitized, &p.SubSecTime,
-		&p.GPSLat, &p.GPSLon, &p.GPSAltitude, &p.GPSTimeStamp, &p.GPSSpeed, &p.GPSImgDirection,
+		&make, &model, &imageDescription, &imageWidth, &imageLength, &xResolution, &yResolution,
+		&resolutionUnit, &orientation, &software, &dateTime, &artist, &copyright,
+		&exposureTime, &exposureProgram, &fNumber, &isoSpeedRatings, &shutterSpeedValue,
+		&apertureValue, &exposureBiasValue, &maxApertureValue, &meteringMode, &lightSource, &flash,
+		&focalLength, &focalLengthIn35mmFilm, &lensMake, &lensModel,
+		&dateTimeOriginal, &dateTimeDigitized, &subSecTime,
+		&gpsLat, &gpsLon, &gpsAltitude, &gpsTimestamp, &gpsSpeed, &gpsImgDirection,
 	)
+	if err != nil {
+		return err
+	}
+
+	// Assign values from sql.Null types to the struct, falling back to zero values if NULL.
+	p.Make = make.String
+	p.Model = model.String
+	p.ImageDescription = imageDescription.String
+	p.ImageWidth = imageWidth.Int64
+	p.ImageLength = imageLength.Int64
+	p.XResolution = xResolution.Float64
+	p.YResolution = yResolution.Float64
+	p.ResolutionUnit = resolutionUnit.Int64
+	p.Orientation = orientation.Int64
+	p.Software = software.String
+	p.DateTime = dateTime.Time
+	p.Artist = artist.String
+	p.Copyright = copyright.String
+	p.ExposureTime = exposureTime.String
+	p.ExposureProgram = exposureProgram.Int64
+	p.FNumber = fNumber.Float64
+	p.ISOSpeedRatings = isoSpeedRatings.Int64
+	p.ShutterSpeedValue = shutterSpeedValue.String
+	p.ApertureValue = apertureValue.Float64
+	p.ExposureBiasValue = exposureBiasValue.String
+	p.MaxApertureValue = maxApertureValue.Float64
+	p.MeteringMode = meteringMode.Int64
+	p.LightSource = lightSource.Int64
+	p.Flash = flash.Int64
+	p.FocalLength = focalLength.Float64
+	p.FocalLengthIn35mmFilm = focalLengthIn35mmFilm.Int64
+	p.LensMake = lensMake.String
+	p.LensModel = lensModel.String
+	p.DateTimeOriginal = dateTimeOriginal.Time
+	p.DateTimeDigitized = dateTimeDigitized.Time
+	p.SubSecTime = subSecTime.String
+	p.GPSLat = gpsLat.Float64
+	p.GPSLon = gpsLon.Float64
+	p.GPSAltitude = gpsAltitude.Float64
+	p.GPSTimeStamp = gpsTimestamp.Time
+	p.GPSSpeed = gpsSpeed.Float64
+	p.GPSImgDirection = gpsImgDirection.Float64
+
+	return nil
 }
 
 // getPhotoDateString returns the date part of a photo's most relevant timestamp.
 func getPhotoDateString(p *PhotoMetadata) string {
-	var t time.Time
-	if p.DateTimeOriginal.Valid {
-		t = p.DateTimeOriginal.Time
-	} else if p.DateTime.Valid {
-		t = p.DateTime.Time
+	if !p.DateTimeOriginal.IsZero() {
+		return p.DateTimeOriginal.Format("2006-01-02")
+	} else if !p.DateTime.IsZero() {
+		return p.DateTime.Format("2006-01-02")
 	} else {
-		t = p.UploadedAt
+		return p.UploadedAt.Format("2006-01-02")
 	}
-	return t.Format("2006-01-02")
 }

@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const sessionDuration = 3 * time.Hour
+
 // Session struct to represent a session.
 type Session struct {
 	Token    string
@@ -17,7 +19,7 @@ type Session struct {
 
 // createSession creates a session in the database
 func createSession(db *sql.DB, token, username string) error {
-	expiry := time.Now().Add(15 * time.Minute)
+	expiry := time.Now().Add(sessionDuration)
 	_, err := db.Exec("INSERT INTO sessions (token, username, expiry) VALUES (?, ?, ?)", token, username, expiry)
 	return err
 }

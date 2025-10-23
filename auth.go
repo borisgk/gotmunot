@@ -80,7 +80,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		http.SetCookie(w, &http.Cookie{
 			Name:     "session_token",
 			Value:    sessionToken,
-			Expires:  time.Now().Add(15 * time.Minute),
+			Expires:  time.Now().Add(sessionDuration),
 			HttpOnly: true, // Important for security
 		})
 
@@ -140,7 +140,7 @@ func apiLoginHandler(w http.ResponseWriter, r *http.Request) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     "session_token",
 		Value:    sessionToken,
-		Expires:  time.Now().Add(15 * time.Minute),
+		Expires:  time.Now().Add(sessionDuration),
 		Path:     "/", // Set cookie for the whole site
 		HttpOnly: true,
 	})

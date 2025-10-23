@@ -248,7 +248,8 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 
 func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 	// First, verify the user has a valid session.
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -272,6 +273,14 @@ func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+
+	// Security Check: Ensure the logged-in user owns the photo.
+	if photoData.UploadedBy != username {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	println(photoData.Filename, photoData.Artist)
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(photoData)
@@ -440,10 +449,10 @@ func deletePhoto(filename string) error {
 
 // getPhotoTime returns the most relevant time.Time for a photo.
 func getPhotoTime(p *PhotoMetadata) time.Time {
-	if p.DateTimeOriginal.Valid {
-		return p.DateTimeOriginal.Time
-	} else if p.DateTime.Valid {
-		return p.DateTime.Time
+	if !p.DateTimeOriginal.IsZero() {
+		return p.DateTimeOriginal
+	} else if !p.DateTime.IsZero() {
+		return p.DateTime
 	}
 	return p.UploadedAt
 }

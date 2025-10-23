@@ -348,46 +348,61 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Handle "Info" button clicks
         if (event.target.matches('.info-btn')) {
             event.preventDefault();
+            // Hide the dropdown menu
+            event.target.closest('.dropdown-content').classList.remove('show');
+
             const filename = event.target.closest('.photo-item').querySelector('.photo-menu-btn').dataset.filename;
-            
-            fetch(`/photo/info/${filename}`)
-                .then(response => {
+
+            const infoModal = document.getElementById("info-modal");
+            const infoModalBody = document.getElementById("info-modal-body");
+
+            // Function to fetch and display photo info
+            async function showPhotoInfo(filename) {
+                try {
+                    const response = await fetch(`/photo/info/${filename}`);
                     if (!response.ok) {
                         throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    return response.json();
-                })
-                .then(data => {
-                    let content = `<h3>${data.Filename}</h3>`;
-                    content += '<table>';
-                    
-                    // Helper to add a row if the value is valid
-                    const addRow = (label, value) => {
-                        if (value && value.Valid) { // Check for uppercase 'Valid'
-                            let displayValue = value.String || value.Int64 || value.Float64; // Check for uppercase properties
-                            if (value.Time) displayValue = new Date(value.Time).toLocaleString(); // Check for uppercase 'Time'
-                            content += `<tr><td><strong>${label}</strong></td><td>${displayValue}</td></tr>`;
+                    const data = await response.json();
+
+                    // Helper to add a row to the table if the value is not a zero-value
+                    const addRow = (table, label, value) => {
+                        let displayValue = value;
+                        // Format date strings for better readability, but ignore zero-value dates
+                        if (typeof value === 'string' && value.includes('T') && value.includes('Z') && !value.startsWith('0001-01-01')) {
+                            displayValue = new Date(value).toLocaleString();
                         }
+
+                        const row = table.insertRow();
+                        row.insertCell(0).innerHTML = `<strong>${label}</strong>`;
+                        row.insertCell(1).textContent = displayValue;
                     };
 
-                    addRow('Date Taken', data.DateTimeOriginal);
-                    addRow('Dimensions', { Valid: data.ImageWidth.Valid, String: `${data.ImageWidth.Int64} x ${data.ImageLength.Int64}` }); // This custom object is fine
-                    addRow('Camera Make', data.Make);
-                    addRow('Camera Model', data.Model);
-                    addRow('Lens Model', data.LensModel);
-                    addRow('F-Number', data.FNumber);
-                    addRow('Exposure Time', data.ExposureTime);
-                    addRow('ISO', data.ISOSpeedRatings);
-                    addRow('Focal Length', { Valid: data.FocalLength.Valid, String: `${data.FocalLength.Float64}mm` }); // This custom object is fine
+                    // Build the content
+                    infoModalBody.innerHTML = `<h3>${data.Filename}</h3>`;
+                    const table = document.createElement('table');
 
-                    content += '</table>';
-                    infoModalBody.innerHTML = content;
+                    // --- Build rows, checking for valid data before adding ---
+
+                    addRow(table, 'Date Taken', data.DateTimeOriginal);
+                    addRow(table, 'Dimensions', `${data.ImageWidth} x ${data.ImageLength}`);
+                    addRow(table, 'Camera', `${data.Make} ${data.Model}`);
+                    addRow(table, 'Lens', data.LensModel);
+                    addRow(table, 'Aperture', `f/${data.FNumber}`);
+                    addRow(table, 'Exposure Time', `${data.ExposureTime}s`);
+                    addRow(table, 'ISO', data.ISOSpeedRatings);
+                    addRow(table, 'Focal Length', `${data.FocalLength}mm`);
+
+                    infoModalBody.appendChild(table);
                     infoModal.style.display = "block";
-                })
-                .catch(error => {
+                } catch (error) {
                     console.error('Error fetching photo info:', error);
                     alert('Could not load photo information.');
-                });
+                }
+            }
+
+            // Call the function
+            showPhotoInfo(filename);
         }
 
         // Handle "Delete" button clicks
