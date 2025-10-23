@@ -69,11 +69,13 @@ func main() {
 	// API for single photo operations (e.g., DELETE)
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
+	http.HandleFunc("/api/photos/batch-update-date", startBatchUpdateDateHandler)
 	http.HandleFunc("/api/photo/update-date", updatePhotoDateHandler)
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
 	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
+	
 	// API for downloading zipped previews
 	http.HandleFunc("/api/photos/download-previews", downloadPreviewsHandler)
 	// API for async downloads
@@ -81,6 +83,10 @@ func main() {
 	http.HandleFunc("/api/downloads/status", getDownloadStatusHandler)
 	http.HandleFunc("/api/downloads/cancel", cancelDownloadHandler)
 	http.HandleFunc("/api/downloads/file", serveDownloadHandler)
+	// Generic Task API
+	http.HandleFunc("/api/tasks/status", getTaskStatusHandler)
+	http.HandleFunc("/api/tasks/cancel", cancelTaskHandler)
+
 
 	// Serve static files (CSS, JS, etc.)
 	http.Handle("/static/css/", http.StripPrefix("/static/css/", http.FileServer(http.Dir("static/css"))))
@@ -308,6 +314,77 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func startBatchUpdateDateHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Authenticate user
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Decode JSON body
+	var payload struct {
+		Filenames []string `json:"filenames"`
+		StartDate string   `json:"start_date"` // Expecting "YYYY-MM-DDTHH:MM"
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Parse the start date
+	startDate, err := time.Parse("2006-01-02T15:04", payload.StartDate)
+	if err != nil {
+		http.Error(w, "Invalid date format", http.StatusBadRequest)
+		return
+	}
+
+	// 4. Generate a unique task ID and initialize progress
+	taskID := fmt.Sprintf("batch-date-update-%d", time.Now().UnixNano())
+	taskProgressMap.Lock()
+	taskProgressMap.tasks[taskID] = &TaskProgress{Total: len(payload.Filenames)}
+	taskProgressMap.Unlock()
+
+	// 5. Start the background task
+	go func(id, user string, filenames []string, startTime time.Time) {
+		log.Printf("Starting batch date update for task %s", id)
+		totalFiles := len(filenames)
+
+		for i, filename := range filenames {
+			// Check for cancellation
+			taskProgressMap.RLock()
+			if taskProgressMap.tasks[id].Cancelled {
+				taskProgressMap.RUnlock()
+				log.Printf("Task %s cancelled.", id)
+				return
+			}
+			taskProgressMap.RUnlock()
+
+			// Calculate the new date for this specific photo
+			newDate := startTime.Add(time.Duration(i) * time.Minute)
+
+			// Update progress before processing
+			taskProgressMap.Lock()
+			taskProgressMap.tasks[id].Processed = i + 1
+			taskProgressMap.tasks[id].Filename = filename
+			taskProgressMap.Unlock()
+
+			// Perform the update
+			if err := updatePhotoDateAndPath(filename, user, newDate); err != nil {
+				log.Printf("Task %s: failed to update date for %s: %v", id, filename, err)
+				// Continue to the next file
+			}
+		}
+
+		log.Printf("Batch date update complete for task %s", id)
+		updateTaskComplete(id, totalFiles)
+	}(taskID, username, payload.Filenames, startDate)
+
+	// 6. Respond immediately with the task ID
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"task_id": taskID})
+}
+
 func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Authenticate user
 	username, ok := isValidSession(db, r)
@@ -496,6 +573,41 @@ func deletePhoto(filename string) error {
 	return nil
 }
 
+func getTaskStatusHandler(w http.ResponseWriter, r *http.Request) {
+	taskID := r.URL.Query().Get("id")
+	if taskID == "" {
+		http.Error(w, "Missing task ID", http.StatusBadRequest)
+		return
+	}
+
+	taskProgressMap.RLock()
+	progress, ok := taskProgressMap.tasks[taskID]
+	taskProgressMap.RUnlock()
+
+	if !ok {
+		http.Error(w, "Task not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(progress)
+}
+
+func cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	taskID := r.URL.Query().Get("id")
+	if taskID == "" {
+		http.Error(w, "Missing task ID", http.StatusBadRequest)
+		return
+	}
+
+	updateTaskCancelled(taskID)
+	w.WriteHeader(http.StatusOK)
+}
+
 // getPhotoTime returns the most relevant time.Time for a photo.
 func getPhotoTime(p *PhotoMetadata) time.Time {
 	if !p.DateTimeOriginal.IsZero() {
@@ -670,4 +782,27 @@ func getRegeneratePreviewsStatusHandler(w http.ResponseWriter, r *http.Request) 
 	// This handler can be the same as the thumbnail status handler
 	// as the logic is identical (just looks up a task ID in the map).
 	getRegenerateThumbnailsStatusHandler(w, r)
+}
+
+// --- Task Helper Functions ---
+
+func updateTaskCancelled(taskID string) {
+	taskProgressMap.Lock()
+	defer taskProgressMap.Unlock()
+	if task, ok := taskProgressMap.tasks[taskID]; ok {
+		task.Cancelled = true
+		task.Complete = true // Mark as complete to stop polling
+		task.Error = "Task cancelled by user."
+	}
+}
+
+func updateTaskComplete(taskID string, total int) {
+	taskProgressMap.Lock()
+	defer taskProgressMap.Unlock()
+	if task, ok := taskProgressMap.tasks[taskID]; ok {
+		if !task.Cancelled {
+			task.Processed = total
+			task.Complete = true
+		}
+	}
 }

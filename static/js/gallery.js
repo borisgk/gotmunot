@@ -75,6 +75,84 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
+    /* --- Batch Change Date Modal Logic --- */
+    const batchChangeDateModal = document.getElementById('batch-change-date-modal');
+    if (batchChangeDateModal) {
+        const closeBtn = batchChangeDateModal.querySelector('.close');
+        const cancelBtn = document.getElementById('batch-change-date-cancel-btn');
+        const form = document.getElementById('batch-change-date-form');
+
+        const closeBatchChangeDateModal = () => {
+            batchChangeDateModal.style.display = 'none';
+        };
+
+        closeBtn.onclick = closeBatchChangeDateModal;
+        cancelBtn.onclick = closeBatchChangeDateModal;
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            closeBatchChangeDateModal(); // Close the date input modal first
+
+            const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
+            const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
+            const newStartDate = document.getElementById('batch-new-date-input').value;
+
+            if (filenames.length === 0) return;
+
+            // Show and manage the progress modal
+            await showProgressModalForBatchDateChange(filenames, newStartDate);
+        });
+    }
+
+    document.getElementById('batch-change-date-btn').addEventListener('click', (e) => {
+        e.preventDefault();
+        document.getElementById('selection-dropdown').classList.remove('show');
+        const selectedCount = document.querySelectorAll('.photo-select-checkbox:checked').length;
+        if (selectedCount === 0) {
+            alert('Please select photos first.');
+            return;
+        }
+        // Pre-fill with current time
+        const now = new Date();
+        const timezoneOffset = now.getTimezoneOffset() * 60000;
+        const localISOTime = new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 16);
+        document.getElementById('batch-new-date-input').value = localISOTime;
+
+        batchChangeDateModal.style.display = 'block';
+    });
+
+    async function showProgressModalForBatchDateChange(filenames, startDate) {
+        const progressModal = document.getElementById('progress-modal');
+        const progressTitle = document.getElementById('progress-title');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+
+        progressTitle.textContent = 'Changing Dates...';
+        progressText.textContent = 'Starting batch update...';
+        progressBar.style.width = '0%';
+        progressModal.style.display = 'block';
+
+        try {
+            const response = await fetch('/api/photos/batch-update-date', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filenames: filenames, start_date: startDate }),
+            });
+
+            if (!response.ok) throw new Error('Failed to start batch update process.');
+
+            const { task_id } = await response.json();
+            
+            // Poll for status using a generic polling function
+            pollTaskStatus(task_id, {
+                onComplete: () => window.location.reload(),
+            });
+        } catch (error) {
+            alert(`Could not start batch update: ${error.message}`);
+            progressModal.style.display = 'none';
+        }
+    }
+
     /* --- Selection & Action Bar Logic --- */
     const selectionBar = document.getElementById('selection-bar');
     const selectionCount = document.getElementById('selection-count');
@@ -300,6 +378,50 @@ document.addEventListener('DOMContentLoaded', (event) => {
             progressModal.style.display = 'none';
         }
     });
+
+    // Generic task poller
+    function pollTaskStatus(taskId, { onComplete, onCancel } = {}) {
+        const progressModal = document.getElementById('progress-modal');
+        const progressTitle = document.getElementById('progress-title');
+        const progressText = document.getElementById('progress-text');
+        const progressBar = document.getElementById('progress-bar');
+        const cancelBtn = document.getElementById('progress-cancel-btn');
+
+        let pollInterval = setInterval(async () => {
+            try {
+                const statusResponse = await fetch(`/api/tasks/status?id=${taskId}`);
+                if (!statusResponse.ok) throw new Error('Task not found.');
+
+                const progress = await statusResponse.json();
+
+                const percent = progress.total > 0 ? (progress.processed / progress.total) * 100 : 0;
+                progressBar.style.width = `${percent}%`;
+                progressText.textContent = `Processing ${progress.processed || 0} of ${progress.total || 0}: ${progress.filename || ''}`;
+
+                if (progress.error) throw new Error(progress.error);
+
+                if (progress.complete) {
+                    clearInterval(pollInterval);
+                    progressText.textContent = 'Task complete! Reloading...';
+                    setTimeout(() => {
+                        progressModal.style.display = 'none';
+                        if (onComplete) onComplete();
+                    }, 1500);
+                }
+            } catch (pollError) {
+                clearInterval(pollInterval);
+                alert(`An error occurred: ${pollError.message}`);
+                progressModal.style.display = 'none';
+            }
+        }, 750);
+
+        cancelBtn.onclick = async () => {
+            clearInterval(pollInterval);
+            await fetch(`/api/tasks/cancel?id=${taskId}`, { method: 'POST' });
+            progressModal.style.display = 'none';
+            if (onCancel) onCancel();
+        };
+    }
 
 
     document.getElementById('clear-selection-btn').addEventListener('click', function(event) {

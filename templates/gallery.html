@@ -19,6 +19,7 @@
 				<a href="#" id="clear-selection-btn">Clear selection</a>
 				<a href="#" id="regenerate-selected-btn">Regenerate</a>
 				<a href="#" id="delete-selected-btn">Delete Selected</a>
+				<a href="#" id="batch-change-date-btn">Change Date</a>
 				<a href="#" id="download-previews-btn">Download previews</a>
 				<a href="#" id="download-originals-btn">Download originals</a>
 			</div>
@@ -51,10 +52,10 @@
 				</div>
 				<div class="photo-gallery">
 					{{range .Photos}}
-					<div class="photo-item" data-year="{{(or .DateTimeOriginal .DateTime .UploadedAt).Year}}" width="{{.ImageWidth}}">
+					<div class="photo-item" data-year="{{(or .DateTimeOriginal .DateTime .UploadedAt).Year}}" width="{{.ImageWidth}}" height="auto">
 						<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
 						<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
-							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ImageWidth}}">
+							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ImageWidth}}" height="auto">
 						</a>
 						<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
 						<div class="dropdown-content">
@@ -98,6 +99,23 @@
 				<div style="margin-top: 1.5em; text-align: right;">
 					<button type="button" id="change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
 					<button type="submit" id="change-date-ok-btn">OK</button>
+				</div>
+			</form>
+		</div>
+	</div>
+
+	<!-- The Batch Change Date Modal -->
+	<div id="batch-change-date-modal" class="info-modal">
+		<div class="info-modal-content">
+			<span class="close">&times;</span>
+			<h3>Batch Change Date</h3>
+			<p>Set the starting date and time for the first selected photo. Each subsequent photo's time will be incremented by one minute.</p>
+			<form id="batch-change-date-form">
+				<label for="batch-new-date-input">New starting date and time:</label>
+				<input type="datetime-local" id="batch-new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
+				<div style="margin-top: 1.5em; text-align: right;">
+					<button type="button" id="batch-change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
+					<button type="submit" id="batch-change-date-ok-btn">OK</button>
 				</div>
 			</form>
 		</div>
