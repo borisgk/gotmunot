@@ -35,33 +35,39 @@
 	</div>
 	{{end}}
 
-	<h2 style="padding-left: 1em;">Recent Uploads</h2>
-	{{if .Photos}}
-		<div class="photo-gallery" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}" data-filter-year="{{.FilterYear}}">
-			{{range .Photos}}
-			{{/* Determine the photo's year using the same priority as the DB sort */}}
-			{{$photoYear := .UploadedAt.Year}}
-			{{if .DateTimeOriginal.Valid}}
-				{{$photoYear = .DateTimeOriginal.Time.Year}}
-			{{else if .DateTime.Valid}}
-				{{$photoYear = .DateTime.Time.Year}}
-			{{end}}
-			<div class="photo-item" data-year="{{$photoYear}}">
-				<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
-				<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
-					<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}">
-				</a>
-				<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
-				<div class="dropdown-content">
-					<a href="#" class="info-btn">Info</a>
-					<a href="#" class="delete-btn">Delete</a>
+	<div id="gallery-container" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-limit="{{.Limit}}" data-filter-year="{{.FilterYear}}">
+		{{if .Photos}}
+			{{$currentDate := ""}}
+			{{range $index, $photo := .Photos}}
+				{{/* Determine the photo's date using the same priority as the DB sort */}}
+				{{$photoTime := .UploadedAt}}
+				{{if .DateTimeOriginal.Valid}}{{$photoTime = .DateTimeOriginal.Time}}{{else if .DateTime.Valid}}{{$photoTime = .DateTime.Time}}{{end}}
+				{{$photoDateStr := $photoTime.Format "2006-01-02"}}
+
+				{{if ne $currentDate $photoDateStr}}
+					{{if gt $index 0}}</div>{{end}} {{/* Close previous photo-gallery div */}}
+					<h2 class="date-separator" data-date="{{$photoDateStr}}">{{$photoTime.Format "Monday, January 2, 2006"}}</h2>
+					<div class="photo-gallery">
+					{{$currentDate = $photoDateStr}}
+				{{end}}
+
+				<div class="photo-item" data-year="{{$photoTime.Year}}">
+					<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
+					<a href="#" class="lightbox-trigger" data-preview="/media/{{$photo.Filepath | toPreviewPath $.Username | html }}">
+						<img src="/media/{{$photo.Filepath | toThumbPath $.Username}}" alt="{{$photo.Filename}}" title="{{$photo.Filename}}">
+					</a>
+					<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
+					<div class="dropdown-content">
+						<a href="#" class="info-btn">Info</a>
+						<a href="#" class="delete-btn">Delete</a>
+					</div>
 				</div>
-			</div>
 			{{end}}
-		</div>
-	{{else}}
-		<p style="padding-left: 1em;">No photos have been uploaded yet.</p>
-	{{end}}
+			</div> {{/* Close the last photo-gallery div */}}
+		{{else}}
+			<p style="padding-left: 1em;">No photos have been uploaded yet.</p>
+		{{end}}
+	</div>
 
 	<!-- The Lightbox Modal -->
 	<div id="lightbox" class="modal">

@@ -248,14 +248,33 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
     /* Lazy Loading Logic */
-    const photoGallery = document.querySelector('.photo-gallery');
-    if (photoGallery) {
-        const username = photoGallery.dataset.username;
+    // The initial photo gallery container has the necessary data attributes.
+    // We now use a single parent container for these attributes.
+    const galleryContainer = document.getElementById('gallery-container');
+
+    if (galleryContainer) {
+        const username = galleryContainer.dataset.username;
         let currentPage = 1;
-        const limit = parseInt(photoGallery.dataset.limit, 10) || 50;
-        const filterYear = parseInt(photoGallery.dataset.filterYear, 10) || 0;
-        const totalPhotos = parseInt(photoGallery.dataset.totalPhotos, 10);
+        const limit = parseInt(galleryContainer.dataset.limit, 10) || 50;
+        const filterYear = parseInt(galleryContainer.dataset.filterYear, 10) || 0;
+        const totalPhotos = parseInt(galleryContainer.dataset.totalPhotos, 10);
         let isLoading = false;
+
+        // Helper to get the date part of a timestamp string (YYYY-MM-DD)
+        function getDateString(isoString) {
+            return isoString.substring(0, 10);
+        }
+
+        // Helper to format date string into a readable format
+        function formatDate(dateString) {
+            const date = new Date(dateString + 'T00:00:00'); // Add time to avoid timezone issues
+            return date.toLocaleDateString(undefined, {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+            });
+        }
 
         // Function to create a photo item from data
         function createPhotoElement(photo) {
@@ -288,6 +307,36 @@ document.addEventListener('DOMContentLoaded', (event) => {
             return photoItem;
         }
 
+        // Function to find or create the correct gallery container for a photo
+        function getOrCreateGalleryContainer(photo) {
+            let photoDate = new Date(photo.UploadedAt);
+            if (photo.DateTimeOriginal && photo.DateTimeOriginal.Valid) {
+                photoDate = new Date(photo.DateTimeOriginal.Time);
+            } else if (photo.DateTime && photo.DateTime.Valid) {
+                photoDate = new Date(photo.DateTime.Time);
+            }
+            const photoDateStr = getDateString(photoDate.toISOString());
+
+            let lastGallery = document.querySelector('.photo-gallery:last-of-type');
+            let lastDateSeparator = document.querySelector('.date-separator:last-of-type');
+            const lastDateStr = lastDateSeparator.dataset.date;
+
+            if (photoDateStr !== lastDateStr) {
+                // Create a new header and gallery div
+                const newHeader = document.createElement('h2');
+                newHeader.className = 'date-separator';
+                newHeader.dataset.date = photoDateStr; // Set the data-date attribute
+                newHeader.textContent = formatDate(photoDateStr);
+                galleryContainer.appendChild(newHeader);
+
+                const newGallery = document.createElement('div');
+                newGallery.className = 'photo-gallery';
+                galleryContainer.appendChild(newGallery);
+                return newGallery;
+            }
+            return lastGallery;
+        }
+
         // Function to load more photos
         function loadMorePhotos() {
             // Stop if we are already loading or have loaded all photos
@@ -308,8 +357,9 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 .then(photos => {
                     if (photos && photos.length > 0) {
                         photos.forEach(photo => {
+                            const container = getOrCreateGalleryContainer(photo);
                             const photoEl = createPhotoElement(photo);
-                            photoGallery.appendChild(photoEl);
+                            container.appendChild(photoEl);
                         });
                     }
                     isLoading = false;

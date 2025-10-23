@@ -34,6 +34,14 @@ body {
     flex-grow: 10; /* Large grow factor to push items to the left */
 }
 
+/* Date Separator Heading */
+.date-separator {
+    padding-left: 1em;
+    margin: 2em 0 1em 0;
+    font-weight: 400;
+    color: #444;
+}
+
 /* Lightbox Modal Styles */
 .modal {
     display: none; /* Hidden by default */
