@@ -258,6 +258,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const limit = parseInt(galleryContainer.dataset.limit, 10) || 50;
         const filterYear = parseInt(galleryContainer.dataset.filterYear, 10) || 0;
         const totalPhotos = parseInt(galleryContainer.dataset.totalPhotos, 10);
+        let loadedPhotosCount = document.querySelectorAll('.photo-item').length;
         let isLoading = false;
 
         // Helper to get the date part of a timestamp string (YYYY-MM-DD)
@@ -340,18 +341,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
         // Function to load more photos
         function loadMorePhotos() {
             // Stop if we are already loading or have loaded all photos
-            if (isLoading || (currentPage * limit) >= totalPhotos) {
+            if (isLoading || loadedPhotosCount >= totalPhotos) {
                 return;
             }
 
             isLoading = true;
-            currentPage++;
 
-            let apiUrl = `/api/photos?page=${currentPage}&limit=${limit}`;
+            // The offset is the number of photos we already have.
+            let apiUrl = `/api/photos?offset=${loadedPhotosCount}&limit=${limit}`;
             if (filterYear > 0) {
                 apiUrl += `&year=${filterYear}`;
             }
-
+            
             fetch(apiUrl)
                 .then(response => response.json())
                 .then(photos => {
@@ -361,6 +362,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             const photoEl = createPhotoElement(photo);
                             container.appendChild(photoEl);
                         });
+                        loadedPhotosCount += photos.length;
                     }
                     isLoading = false;
                 })

@@ -145,54 +145,66 @@ func initPhotosDB() {
 
 // getPhotos retrieves a paginated list of photos.
 func getPhotos(username string, year, limit, offset int) ([]PhotoMetadata, error) {
-	query := `SELECT 
-            id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
-            make, model, image_description, image_width, image_length, x_resolution, y_resolution,
-            resolution_unit, orientation, software, date_time, artist, copyright,
-            exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
-            aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
-            focal_length, focal_length_in_35mm_film, lens_make, lens_model,
-            date_time_original, date_time_digitized, subsec_time,
-            gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
-        FROM photos
-        WHERE uploaded_by = ?
-    `
+	// This function now ensures that it doesn't split photo groups from the same day.
+	// It fetches at least `limit` photos and continues until the date changes.
+
+	baseQuery := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
+		make, model, image_description, image_width, image_length, x_resolution, y_resolution,
+		resolution_unit, orientation, software, date_time, artist, copyright,
+		exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
+		aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
+		focal_length, focal_length_in_35mm_film, lens_make, lens_model,
+		date_time_original, date_time_digitized, subsec_time,
+		gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+		FROM photos WHERE uploaded_by = ?`
 	args := []interface{}{username}
 
 	if year > 0 {
-		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		baseQuery += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
 		args = append(args, year)
 	}
 
-	query += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC LIMIT ? OFFSET ?`
-	args = append(args, limit, offset)
+	baseQuery += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC`
 
-	rows, err := photosDB.Query(query, args...)
+	var photos []PhotoMetadata
+	var lastDate string
+	currentOffset := 0
+
+	// Fetch all photos matching the base query (without limit/offset)
+	rows, err := photosDB.Query(baseQuery, args...)
 	if err != nil {
 		return nil, err
 	}
-
 	defer rows.Close()
 
-	var photos []PhotoMetadata
 	for rows.Next() {
+		// Skip rows until we reach the desired offset
+		if currentOffset < offset {
+			currentOffset++
+			continue
+		}
+
 		var p PhotoMetadata
-		if err := rows.Scan(
-			&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
-			&p.Make, &p.Model, &p.ImageDescription, &p.ImageWidth, &p.ImageLength, &p.XResolution, &p.YResolution,
-			&p.ResolutionUnit, &p.Orientation, &p.Software, &p.DateTime, &p.Artist, &p.Copyright,
-			&p.ExposureTime, &p.ExposureProgram, &p.FNumber, &p.ISOSpeedRatings, &p.ShutterSpeedValue,
-			&p.ApertureValue, &p.ExposureBiasValue, &p.MaxApertureValue, &p.MeteringMode, &p.LightSource, &p.Flash,
-			&p.FocalLength, &p.FocalLengthIn35mmFilm, &p.LensMake, &p.LensModel,
-			&p.DateTimeOriginal, &p.DateTimeDigitized, &p.SubSecTime,
-			&p.GPSLat, &p.GPSLon, &p.GPSAltitude, &p.GPSTimeStamp, &p.GPSSpeed, &p.GPSImgDirection,
-		); err != nil {
+		if err := scanPhoto(rows, &p); err != nil {
 			return nil, err
 		}
+
+		photoDate := getPhotoDateString(&p)
+
+		// If we have already met the limit and the date changes, we can stop.
+		if len(photos) >= limit && photoDate != lastDate {
+			break
+		}
+
 		photos = append(photos, p)
+		lastDate = photoDate
 	}
 
-	return photos, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return photos, nil
 }
 
 // getTotalPhotoCount returns the total number of photos in the database.
@@ -350,4 +362,31 @@ func deletePhotoByFilename(filename string) error {
 		return err
 	}
 	return nil
+}
+
+// scanPhoto is a helper to scan a photo row into a PhotoMetadata struct.
+func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata) error {
+	return scanner.Scan(
+		&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
+		&p.Make, &p.Model, &p.ImageDescription, &p.ImageWidth, &p.ImageLength, &p.XResolution, &p.YResolution,
+		&p.ResolutionUnit, &p.Orientation, &p.Software, &p.DateTime, &p.Artist, &p.Copyright,
+		&p.ExposureTime, &p.ExposureProgram, &p.FNumber, &p.ISOSpeedRatings, &p.ShutterSpeedValue,
+		&p.ApertureValue, &p.ExposureBiasValue, &p.MaxApertureValue, &p.MeteringMode, &p.LightSource, &p.Flash,
+		&p.FocalLength, &p.FocalLengthIn35mmFilm, &p.LensMake, &p.LensModel,
+		&p.DateTimeOriginal, &p.DateTimeDigitized, &p.SubSecTime,
+		&p.GPSLat, &p.GPSLon, &p.GPSAltitude, &p.GPSTimeStamp, &p.GPSSpeed, &p.GPSImgDirection,
+	)
+}
+
+// getPhotoDateString returns the date part of a photo's most relevant timestamp.
+func getPhotoDateString(p *PhotoMetadata) string {
+	var t time.Time
+	if p.DateTimeOriginal.Valid {
+		t = p.DateTimeOriginal.Time
+	} else if p.DateTime.Valid {
+		t = p.DateTime.Time
+	} else {
+		t = p.UploadedAt
+	}
+	return t.Format("2006-01-02")
 }

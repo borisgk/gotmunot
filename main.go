@@ -259,13 +259,13 @@ func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Parse query parameters for pagination
-	pageStr := r.URL.Query().Get("page")
+	offsetStr := r.URL.Query().Get("offset")
 	limitStr := r.URL.Query().Get("limit")
 	yearStr := r.URL.Query().Get("year")
 
-	page, err := strconv.Atoi(pageStr)
-	if err != nil || page < 1 {
-		page = 1
+	offset, err := strconv.Atoi(offsetStr)
+	if err != nil || offset < 0 {
+		offset = 0
 	}
 
 	limit, err := strconv.Atoi(limitStr)
@@ -274,9 +274,6 @@ func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	year, _ := strconv.Atoi(yearStr)
-
-	// Calculate offset
-	offset := (page - 1) * limit
 
 	// Retrieve photos from the database
 	photos, err := getPhotos(username, year, limit, offset)
