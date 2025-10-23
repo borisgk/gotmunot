@@ -10,14 +10,16 @@ body {
     gap: 2px;
 }
 .photo-gallery img {
-    height: 250px; /* Made thumbnails bigger */
-    width: 100%;   /* Image fills its container */
+    /* The image should fill its parent container (.photo-item) */
+    width: 100%;
+    height: 100%;
     display: block;
     object-fit: cover; /* Ensures image covers the area, cropping to fit */
 }
 .photo-item {
     flex-grow: 1; /* Allows items to grow and fill the row */
     position: relative; /* For potential future overlays */
+    height: 250px; /* Set a consistent row height */
 }
 .photo-item.selected::after {
     content: '';

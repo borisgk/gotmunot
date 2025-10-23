@@ -60,6 +60,15 @@ type PhotoMetadata struct {
 	GPSImgDirection  sql.NullFloat64
 }
 
+// AspectRatio calculates the width/height ratio of the photo.
+// It returns a default of 3:2 if dimensions are not available.
+func (p *PhotoMetadata) AspectRatio() float64 {
+	if p.ImageWidth.Valid && p.ImageLength.Valid && p.ImageWidth.Int64 > 0 && p.ImageLength.Int64 > 0 {
+		return float64(p.ImageWidth.Int64) / float64(p.ImageLength.Int64)
+	}
+	return 1.5 // Default to a 3:2 aspect ratio
+}
+
 // initPhotosDB initializes the photos database.
 func initPhotosDB() {
 	var err error
