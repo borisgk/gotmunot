@@ -143,12 +143,9 @@ func initPhotosDB() {
 	log.Println("Photos database initialized.")
 }
 
-// getPhotos retrieves a paginated list of photos.
-func getPhotos(username string, year, limit, offset int) ([]PhotoMetadata, error) {
-	// This function now ensures that it doesn't split photo groups from the same day.
-	// It fetches at least `limit` photos and continues until the date changes.
-
-	baseQuery := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
+// getPhotos retrieves all photos for a user, with an optional year filter.
+func getPhotos(username string, year int) ([]PhotoMetadata, error) {
+	query := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
 		make, model, image_description, image_width, image_length, x_resolution, y_resolution,
 		resolution_unit, orientation, software, date_time, artist, copyright,
 		exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
@@ -160,51 +157,13 @@ func getPhotos(username string, year, limit, offset int) ([]PhotoMetadata, error
 	args := []interface{}{username}
 
 	if year > 0 {
-		baseQuery += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
 		args = append(args, year)
 	}
 
-	baseQuery += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC`
+	query += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC`
 
-	var photos []PhotoMetadata
-	var lastDate string
-	currentOffset := 0
-
-	// Fetch all photos matching the base query (without limit/offset)
-	rows, err := photosDB.Query(baseQuery, args...)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	for rows.Next() {
-		// Skip rows until we reach the desired offset
-		if currentOffset < offset {
-			currentOffset++
-			continue
-		}
-
-		var p PhotoMetadata
-		if err := scanPhoto(rows, &p); err != nil {
-			return nil, err
-		}
-
-		photoDate := getPhotoDateString(&p)
-
-		// If we have already met the limit and the date changes, we can stop.
-		if len(photos) >= limit && photoDate != lastDate {
-			break
-		}
-
-		photos = append(photos, p)
-		lastDate = photoDate
-	}
-
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-
-	return photos, nil
+	return queryPhotos(query, args...)
 }
 
 // getTotalPhotoCount returns the total number of photos in the database.
@@ -330,11 +289,25 @@ func getAllPhotos(username string) ([]PhotoMetadata, error) {
 		photos = append(photos, p)
 	}
 
-	if err := rows.Err(); err != nil {
+	return photos, rows.Err()
+}
+
+// queryPhotos is a helper function to run a query and scan the results into a slice of PhotoMetadata.
+func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
+	rows, err := photosDB.Query(query, args...)
+	if err != nil {
 		return nil, err
 	}
-
-	return photos, nil
+	defer rows.Close()
+	var photos []PhotoMetadata
+	for rows.Next() {
+		var p PhotoMetadata
+		if err := scanPhoto(rows, &p); err != nil {
+			return nil, err
+		}
+		photos = append(photos, p)
+	}
+	return photos, rows.Err()
 }
 
 // savePhotoMetadata saves photo metadata to the database.

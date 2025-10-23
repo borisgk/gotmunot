@@ -61,8 +61,6 @@ func main() {
 	http.HandleFunc("/service/regenerate-thumbnails/start", startRegenerateThumbnailsHandler)
 	// Handler for photo info
 	http.HandleFunc("/photo/info/", photoInfoHandler)
-	// API endpoint for paginated photos
-	http.HandleFunc("/api/photos", photosAPIHandler)
 	http.HandleFunc("/service/regenerate-thumbnails/status", getRegenerateThumbnailsStatusHandler)
 	// Handlers for polling-based preview regeneration
 	http.HandleFunc("/service/regenerate-previews/start", startRegeneratePreviewsHandler)
@@ -137,11 +135,8 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	yearStr := r.URL.Query().Get("year")
 	year, _ := strconv.Atoi(yearStr) // Atoi returns 0 on error, which we use to mean "no filter".
 
-	// Define the number of photos per page for the initial load.
-	const initialLimit = 50
-
-	// Get the first page of photos.
-	photos, err := getPhotos(username, year, initialLimit, 0)
+	// Get all photos matching the filter.
+	photos, err := getPhotos(username, year)
 	if err != nil {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
@@ -169,6 +164,14 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		if currentGroup != nil {
 			dayGroups = append(dayGroups, *currentGroup)
 		}
+	}
+
+	// Sort photos within each day group in ascending order.
+	for i := range dayGroups {
+		sort.Slice(dayGroups[i].Photos, func(j, k int) bool {
+			// getPhotoTime gets the best available time for sorting.
+			return getPhotoTime(&dayGroups[i].Photos[j]).Before(getPhotoTime(&dayGroups[i].Photos[k]))
+		})
 	}
 
 	// Get the total number of photos for the frontend to know when to stop loading.
@@ -207,7 +210,6 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		TotalPhotos int
 		AllPhotosCount int
 		ShowPreview string
-		Limit       int
 		FilterYear  int
 		Years       []int
 		PhotoCounts map[int]int
@@ -217,7 +219,6 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		AllPhotosCount: allPhotosCount,
 		ShowPreview: showPreview,
 		TotalPhotos: totalPhotos,
-		Limit:       initialLimit,
 		FilterYear:  year,
 		Years:       years,
 		PhotoCounts: photoCounts,
@@ -242,49 +243,6 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-}
-
-func photosAPIHandler(w http.ResponseWriter, r *http.Request) {
-	// First, verify the user has a valid session.
-	username, ok := isValidSession(db, r)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// Parse query parameters for pagination
-	offsetStr := r.URL.Query().Get("offset")
-	limitStr := r.URL.Query().Get("limit")
-	yearStr := r.URL.Query().Get("year")
-
-	offset, err := strconv.Atoi(offsetStr)
-	if err != nil || offset < 0 {
-		offset = 0
-	}
-
-	limit, err := strconv.Atoi(limitStr)
-	if err != nil || limit < 1 {
-		limit = 50 // Default limit
-	}
-
-	year, _ := strconv.Atoi(yearStr)
-
-	// Retrieve photos from the database
-	photos, err := getPhotos(username, year, limit, offset)
-	if err != nil {
-		log.Printf("Error getting photos for API: %v", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	// If no photos are returned, it might be the end of the list.
-	// Send an empty array instead of an error.
-	if photos == nil {
-		photos = []PhotoMetadata{}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(photos)
 }
 
 func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
