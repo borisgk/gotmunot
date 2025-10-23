@@ -16,13 +16,6 @@ import (
 	"sort"
 )
 
-// User struct to represent a user.
-type User struct {
-	ID       int
-	Username string
-	Password string // Hash!
-}
-
 // TaskProgress holds the state of a long-running task.
 type TaskProgress struct {
 	Processed int    `json:"processed,omitempty"`
@@ -121,72 +114,6 @@ func main() {
 	// Start the HTTP server on port 9030.
 	// If there's an error starting the server, log.Fatal will log the error and exit.
 	log.Fatal(http.ListenAndServe(":9030", nil))
-}
-
-func loginHandler(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		// Display the login form
-		redirectURL := r.URL.Query().Get("redirect_url")
-		data := struct {
-			RedirectURL string
-		}{RedirectURL: redirectURL}
-		err := tmpl.ExecuteTemplate(w, "login.html", data)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-		}
-	case http.MethodPost:
-		// Handle login submission
-		r.ParseForm()
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-
-		// Retrieve user from the database.
-		var user User
-		err := db.QueryRow("SELECT id, username, password FROM users WHERE username = ?", username).Scan(&user.ID, &user.Username, &user.Password)
-		if err != nil {
-			if err == sql.ErrNoRows {
-				http.Error(w, "Invalid username or password - please try again", http.StatusUnauthorized)
-			} else {
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-			}
-			return
-		}
-
-		// Check the password.
-		if !checkPasswordHash(password, user.Password) {
-			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
-			return
-		}
-
-		// Create a session
-		sessionToken := generateSessionToken()
-		err = createSession(db, sessionToken, user.Username)
-		if err != nil {
-			http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-			return
-		}
-
-		// Set a session cookie
-		http.SetCookie(w, &http.Cookie{
-			Name:     "session_token",
-			Value:    sessionToken,
-			Expires:  time.Now().Add(15 * time.Minute),
-			HttpOnly: true, // Important for security
-		})
-
-		// After successful login, check if there's a redirect URL.
-		redirectURL := r.FormValue("redirect_url")
-		if redirectURL != "" {
-			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
-		} else {
-			// Otherwise, redirect to the default gallery page.
-			http.Redirect(w, r, "/gallery", http.StatusSeeOther)
-		}
-
-	default:
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-	}
 }
 
 // DayGroup is a struct to hold photos grouped by a specific date.
@@ -520,56 +447,6 @@ func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusAccepted) // 202 Accepted is a good response for starting a background task.
 }
 
-func apiLoginHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var creds struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&creds); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// Retrieve user from the database.
-	var user User
-	err := db.QueryRow("SELECT id, username, password FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.Username, &user.Password)
-	if err != nil {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	// Check the password.
-	if !checkPasswordHash(creds.Password, user.Password) {
-		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
-		return
-	}
-
-	// Create a session
-	sessionToken := generateSessionToken()
-	err = createSession(db, sessionToken, user.Username)
-	if err != nil {
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-		return
-	}
-
-	// Set a session cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    sessionToken,
-		Expires:  time.Now().Add(15 * time.Minute),
-		Path:     "/", // Set cookie for the whole site
-		HttpOnly: true,
-	})
-
-	w.WriteHeader(http.StatusOK)
-}
-
 // deletePhoto contains the core logic to delete a single photo and its files.
 func deletePhoto(filename string) error {
 	// Get photo metadata from DB to find its filepath.
@@ -776,15 +653,4 @@ func getRegeneratePreviewsStatusHandler(w http.ResponseWriter, r *http.Request) 
 	// This handler can be the same as the thumbnail status handler
 	// as the logic is identical (just looks up a task ID in the map).
 	getRegenerateThumbnailsStatusHandler(w, r)
-}
-
-func logoutHandler(w http.ResponseWriter, r *http.Request) {
-	cookie, err := r.Cookie("session_token")
-	if err == nil {
-		deleteSession(db, cookie.Value)
-		//expire the cookie by setting the expiration in the past
-		cookie.Expires = time.Now().AddDate(0, 0, -1)
-		http.SetCookie(w, cookie)
-	}
-	http.Redirect(w, r, "/login", http.StatusSeeOther)
 }
