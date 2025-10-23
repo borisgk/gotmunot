@@ -246,7 +246,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     alert(`An error occurred: ${pollError.message}`);
                     progressModal.style.display = 'none';
                 }
-            }, 750); // Poll every 0.75 seconds
+            }, 150); // Poll every 0.75 seconds
         } catch (startError) {
             alert(`Could not start download: ${startError.message}`);
             progressModal.style.display = 'none';
