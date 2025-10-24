@@ -11,9 +11,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-var photosDB *sql.DB
-var insertPhotoStmt *sql.Stmt
-
 // PhotoMetadata struct to represent photo metadata.
 type PhotoMetadata struct {
 	ID               int
@@ -33,47 +30,6 @@ func (p *PhotoMetadata) AspectRatio() float64 {
 		return float64(p.ImageWidth) / float64(p.ImageLength)
 	}
 	return 1.5 // Default to a 3:2 aspect ratio
-}
-
-// initPhotosDB initializes the photos database.
-func initPhotosDB() {
-	var err error
-	dbPath := filepath.Join(AppConfig.DataDir, "photos.db")
-	photosDB, err = sql.Open("sqlite", dbPath)
-	if err != nil {
-		log.Fatalf("Error opening photos database: %v", err)
-	}
-
-	// Create the photos table if it doesn't exist.
-	_, err = photosDB.Exec(`
-		CREATE TABLE IF NOT EXISTS photos (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			filename TEXT,
-			filepath TEXT UNIQUE,
-			uploaded_by TEXT,
-			uploaded_at DATETIME,
-			image_width INTEGER,
-			image_length INTEGER,
-			date_time DATETIME
-		)
-	`)
-	if err != nil {
-		log.Fatalf("Error creating photos table: %v", err)
-	}
-
-	// Prepare the insert statement for saving photo metadata.
-	// This is more efficient as the SQL is parsed only once.
-	insertPhotoStmt, err = photosDB.Prepare(`
-		INSERT INTO photos (
-			filename, filepath, uploaded_by, uploaded_at, 
-			image_width, image_length, date_time
-		)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		log.Fatalf("Error preparing insert photo statement: %v", err)
-	}
-
-	log.Println("Photos database initialized.")
 }
 
 // getPhotos retrieves all photos for a user, with an optional year filter.

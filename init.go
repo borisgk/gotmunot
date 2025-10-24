@@ -86,7 +86,45 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating users table: %v", err)
 	}
-	db.Exec("ALTER TABLE users ADD COLUMN uuid TEXT UNIQUE")
+
+	// Initialize the photos database (global)
+	dbPathPhotos := filepath.Join(AppConfig.DataDir, "photos.db")
+	photosDB, err = sql.Open("sqlite", dbPathPhotos)
+	if err != nil {
+		log.Fatalf("Error opening photos database: %v", err)
+	}
+
+	// Create the photos table if it doesn't exist.
+	_, err = photosDB.Exec(`
+		CREATE TABLE IF NOT EXISTS photos (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			filename TEXT,
+			filepath TEXT UNIQUE,
+			uploaded_by TEXT,
+			uploaded_at DATETIME,
+			image_width INTEGER,
+			image_length INTEGER,
+			date_time DATETIME
+		)
+	`)
+	if err != nil {
+		log.Fatalf("Error creating photos table: %v", err)
+	}
+
+	// Prepare the insert statement for saving photo metadata.
+	// This is more efficient as the SQL is parsed only once.
+	insertPhotoStmt, err = photosDB.Prepare(`
+		INSERT INTO photos (
+			filename, filepath, uploaded_by, uploaded_at, 
+			image_width, image_length, date_time
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		log.Fatalf("Error preparing insert photo statement: %v", err)
+	}
+
+	log.Println("Photos database initialized.")
+
 	// Create the sessions table if it doesn't exist.
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -99,10 +137,7 @@ func init() {
 		log.Fatalf("Error creating sessions table: %v", err)
 	}
 
-	// Initialize the photos database
-	initPhotosDB()
-
-	// Add default users if they don't exist, and ensure they have UUIDs.
+	// Add default users if they don't exist.
 	users := map[string]string{
 		"user1": "password123",
 		"user2": "securepass",
@@ -116,13 +151,6 @@ func init() {
 			_, err := db.Exec("INSERT INTO users (uuid, username, password) VALUES (?, ?, ?)", userUUID, username, hashedPassword)
 			if err != nil {
 				log.Fatalf("Error adding default user %s: %v", username, err)
-			}
-		} else {
-			// Ensure existing users have a UUID
-			var existingUUID sql.NullString
-			db.QueryRow("SELECT uuid FROM users WHERE username = ?", username).Scan(&existingUUID)
-			if !existingUUID.Valid || existingUUID.String == "" {
-				db.Exec("UPDATE users SET uuid = ? WHERE username = ?", uuid.New().String(), username)
 			}
 		}
 	}
