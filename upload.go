@@ -163,11 +163,9 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		DateTime:    photoDate,       // Use the determined best date
 	}
 
-	// Save metadata to the database.
-	if _, err := savePhotoMetadata(photoData); err != nil {
-		log.Printf("Error saving metadata for %s: %v", header.Filename, err)
-		// Not returning an error to the client, as the file upload itself was successful.
-	}
+	// Send metadata to the background worker queue to be saved asynchronously.
+	// This is non-blocking and prevents DB contention during mass uploads.
+	photoMetadataQueue <- photoData
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uploadResponse{

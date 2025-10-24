@@ -11,7 +11,6 @@ import (
 	"strings"
 	"path/filepath"
 	"sync"
-	"sync/atomic"
 	"runtime"
 	"os"
 	"strconv"
@@ -35,6 +34,9 @@ var taskProgressMap = struct {
 	tasks map[string]*TaskProgress
 }{tasks: make(map[string]*TaskProgress)}
 
+// photoMetadataQueue is a channel that acts as a queue for saving photo metadata.
+var photoMetadataQueue chan *PhotoMetadata
+
 func main() {
 	// Define a handler function for the root path ("/").
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -46,6 +48,11 @@ func main() {
 	http.HandleFunc("/status", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, "TM25 is running!")
 	})
+
+	// Initialize and start the metadata saving queue and worker.
+	// A buffer of 100 can handle bursts of uploads.
+	photoMetadataQueue = make(chan *PhotoMetadata, 100)
+	go startMetadataSaveWorker()
 
 	// Handler for the login page
 	http.HandleFunc("/login", loginHandler)
@@ -125,6 +132,20 @@ func main() {
 	log.Fatal(http.ListenAndServe(":9030", nil))
 }
 
+// startMetadataSaveWorker is a long-running goroutine that processes metadata
+// save requests from a channel, serializing all database writes.
+func startMetadataSaveWorker() {
+	log.Println("Starting metadata save worker...")
+	for photoData := range photoMetadataQueue {
+		if _, err := savePhotoMetadata(photoData); err != nil {
+			// This error happens in the background, so we just log it.
+			log.Printf("BACKGROUND_ERROR: Failed to save metadata for %s: %v", photoData.Filename, err)
+		} else {
+			log.Printf("Metadata for %s saved successfully from queue.", photoData.Filename)
+		}
+	}
+}
+
 // DayGroup is a struct to hold photos grouped by a specific date.
 type DayGroup struct {
 	Date   time.Time
@@ -161,6 +182,11 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		var currentGroup *DayGroup
 
 		for _, p := range photos {
+			// When filtering by year, skip any photos that don't match the filter year.
+			// This prevents incorrect grouping from the last day of the previous year.
+			if year > 0 && getPhotoTime(&p).Year() != year {
+				continue
+			}
 			photoDateStr := getPhotoDateString(&p)
 			if photoDateStr != currentDateStr {
 				if currentGroup != nil {

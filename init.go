@@ -14,8 +14,7 @@ import (
 
 var db *sql.DB
 var tmpl *template.Template
-var photosDB *sql.DB
-var insertPhotoStmt *sql.Stmt
+var photosDB *sql.DB // photosDB remains global as it's the connection pool
 
 func init() {
 	fmt.Println("Initializing TM25...")
@@ -70,11 +69,19 @@ func init() {
 
 	// Initialize the database connection.
 	var err error
-	dbPath := filepath.Join(AppConfig.DataDir, "users.db")
+	// Add _busy_timeout to the DSN to make SQLite wait if the DB is locked.
+	dbPath := filepath.Join(AppConfig.DataDir, "users.db?_busy_timeout=5000")
 	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
 		log.Fatalf("Error opening database: %v", err)
 	}
+
+	// Enable Write-Ahead Logging for better concurrency.
+	_, err = db.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		log.Fatalf("Error enabling WAL mode for users.db: %v", err)
+	}
+	log.Println("Users database WAL mode enabled.")
 
 	// Create the users table if it doesn't exist.
 	_, err = db.Exec(`
@@ -90,11 +97,18 @@ func init() {
 	}
 
 	// Initialize the photos database (global)
-	dbPathPhotos := filepath.Join(AppConfig.DataDir, "photos.db")
+	dbPathPhotos := filepath.Join(AppConfig.DataDir, "photos.db?_busy_timeout=5000")
 	photosDB, err = sql.Open("sqlite", dbPathPhotos)
 	if err != nil {
 		log.Fatalf("Error opening photos database: %v", err)
 	}
+
+	// Enable Write-Ahead Logging for better concurrency.
+	_, err = photosDB.Exec("PRAGMA journal_mode=WAL;")
+	if err != nil {
+		log.Fatalf("Error enabling WAL mode for photos.db: %v", err)
+	}
+	log.Println("Photos database WAL mode enabled.")
 
 	// Create the photos table if it doesn't exist.
 	_, err = photosDB.Exec(`
@@ -111,18 +125,6 @@ func init() {
 	`)
 	if err != nil {
 		log.Fatalf("Error creating photos table: %v", err)
-	}
-
-	// Prepare the insert statement for saving photo metadata.
-	// This is more efficient as the SQL is parsed only once.
-	insertPhotoStmt, err = photosDB.Prepare(`
-		INSERT INTO photos (
-			filename, filepath, uploaded_by, uploaded_at, 
-			image_width, image_length, date_time
-		)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`)
-	if err != nil {
-		log.Fatalf("Error preparing insert photo statement: %v", err)
 	}
 
 	log.Println("Photos database initialized.")

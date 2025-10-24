@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"time"
+	"fmt"
 
 	_ "modernc.org/sqlite"
 )
@@ -155,14 +156,40 @@ func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
 
 // savePhotoMetadata saves photo metadata to the database.
 func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
-	result, err := insertPhotoStmt.Exec(
+	tx, err := photosDB.Begin()
+	if err != nil {
+		return 0, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback on error, if Commit is not called
+
+	stmt, err := tx.Prepare(`
+		INSERT INTO photos (
+			filename, filepath, uploaded_by, uploaded_at, 
+			image_width, image_length, date_time
+		)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`)
+	if err != nil {
+		return 0, fmt.Errorf("failed to prepare statement within transaction: %w", err)
+	}
+	defer stmt.Close() // Close the statement when the function returns
+
+	result, err := stmt.Exec(
 		p.Filename, p.Filepath, p.UploadedBy, p.UploadedAt,
 		p.ImageWidth, p.ImageLength, p.DateTime,
 	)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("failed to execute insert statement: %w", err)
 	}
-	return result.LastInsertId()
+
+	if err := tx.Commit(); err != nil {
+		return 0, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, fmt.Errorf("failed to get last insert ID: %w", err)
+	}
+	return id, nil
 }
 
 // deletePhotoByFilename deletes a photo's record from the database by its filename.
