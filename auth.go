@@ -13,6 +13,7 @@ import (
 // User struct to represent a user.
 type User struct {
 	ID       int
+	UUID     string
 	Username string
 	Password string // Hash!
 }
@@ -52,7 +53,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve user from the database.
 		var user User
-		err := db.QueryRow("SELECT id, username, password FROM users WHERE username = ?", username).Scan(&user.ID, &user.Username, &user.Password)
+		err := db.QueryRow("SELECT id, uuid, username, password FROM users WHERE username = ?", username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, "Invalid username or password - please try again", http.StatusUnauthorized)
@@ -116,7 +117,7 @@ func apiLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve user from the database.
 	var user User
-	err := db.QueryRow("SELECT id, username, password FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.Username, &user.Password)
+	err := db.QueryRow("SELECT id, uuid, username, password FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password)
 	if err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
 
@@ -77,6 +78,7 @@ func init() {
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
+            uuid TEXT UNIQUE NOT NULL,
             username TEXT UNIQUE,
             password TEXT
         )
@@ -84,6 +86,7 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error creating users table: %v", err)
 	}
+	db.Exec("ALTER TABLE users ADD COLUMN uuid TEXT UNIQUE")
 	// Create the sessions table if it doesn't exist.
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -99,10 +102,29 @@ func init() {
 	// Initialize the photos database
 	initPhotosDB()
 
-	// Add some default users
-	_, err = db.Exec("INSERT OR IGNORE INTO users (username, password) VALUES (?, ?), (?, ?)", "user1", hashPassword("password123"), "user2", hashPassword("securepass"))
-	if err != nil {
-		log.Fatalf("Error adding default users: %v", err)
+	// Add default users if they don't exist, and ensure they have UUIDs.
+	users := map[string]string{
+		"user1": "password123",
+		"user2": "securepass",
+	}
+	for username, password := range users {
+		var count int
+		db.QueryRow("SELECT COUNT(*) FROM users WHERE username = ?", username).Scan(&count)
+		if count == 0 {
+			userUUID := uuid.New().String()
+			hashedPassword := hashPassword(password)
+			_, err := db.Exec("INSERT INTO users (uuid, username, password) VALUES (?, ?, ?)", userUUID, username, hashedPassword)
+			if err != nil {
+				log.Fatalf("Error adding default user %s: %v", username, err)
+			}
+		} else {
+			// Ensure existing users have a UUID
+			var existingUUID sql.NullString
+			db.QueryRow("SELECT uuid FROM users WHERE username = ?", username).Scan(&existingUUID)
+			if !existingUUID.Valid || existingUUID.String == "" {
+				db.Exec("UPDATE users SET uuid = ? WHERE username = ?", uuid.New().String(), username)
+			}
+		}
 	}
 
 	funcMap := template.FuncMap{
