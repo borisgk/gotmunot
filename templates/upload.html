@@ -116,12 +116,24 @@
             uploadStatus.innerHTML = '<h3>Upload Progress:</h3>';
             const totalStartTime = performance.now();
 
-            const uploadPromises = [];
-            for (const file of files) {
-                uploadPromises.push(uploadFile(file));
+            // --- Concurrent upload with a limit ---
+            const concurrencyLimit = 5;
+            const queue = [...files]; // Create a mutable copy of the files array
+
+            async function worker() {
+                while (queue.length > 0) {
+                    const file = queue.shift(); // Get the next file from the queue
+                    await uploadFile(file);
+                }
             }
-            // Wait for all uploads to complete concurrently.
-            await Promise.all(uploadPromises);
+
+            // Create and start the workers
+            const workers = [];
+            for (let i = 0; i < concurrencyLimit; i++) {
+                workers.push(worker());
+            }
+
+            await Promise.all(workers); // Wait for all workers to finish
 
             const totalEndTime = performance.now();
             const totalDuration = ((totalEndTime - totalStartTime) / 1000).toFixed(2);
