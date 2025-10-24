@@ -28,6 +28,7 @@ rsync -avz --delete \
     --exclude 'tmp/' \
     --exclude '.git/' \
     --exclude 'deploy.sh' \
+    --exclude 'tm25' \
     . "${REMOTE_DEST}/"
 
 echo ">>> File sync complete."
