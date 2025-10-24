@@ -70,7 +70,7 @@ func main() {
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
 	http.HandleFunc("/api/photos/batch-update-date", startBatchUpdateDateHandler)
-	http.HandleFunc("/api/photos/process-thumbnails", startProcessThumbnailsHandler)
+	http.HandleFunc("/api/photos/process-uploaded", startProcessUploadedPhotosHandler)
 	http.HandleFunc("/api/photo/update-date", updatePhotoDateHandler)
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
@@ -784,8 +784,8 @@ func getRegeneratePreviewsStatusHandler(w http.ResponseWriter, r *http.Request) 
 	getRegenerateThumbnailsStatusHandler(w, r)
 }
 
-// startProcessThumbnailsHandler initiates background thumbnail generation for newly uploaded photos.
-func startProcessThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
+// startProcessUploadedPhotosHandler initiates background processing for newly uploaded photos.
+func startProcessUploadedPhotosHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Authenticate user
 	username, ok := isValidSession(db, r)
 	if !ok {
@@ -808,13 +808,13 @@ func startProcessThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 3. Generate a unique task ID and initialize progress
-	taskID := fmt.Sprintf("process-thumbs-%d", time.Now().UnixNano())
+	taskID := fmt.Sprintf("process-upload-%d", time.Now().UnixNano())
 	taskProgressMap.Lock()
 	taskProgressMap.tasks[taskID] = &TaskProgress{Total: len(payload.Filenames)}
 	taskProgressMap.Unlock()
 
 	// 4. Start the background task
-	go processThumbnailsBatch(taskID, username, payload.Filenames)
+	go processUploadedPhotosBatch(taskID, username, payload.Filenames)
 
 	// 5. Respond immediately with the task ID
 	w.Header().Set("Content-Type", "application/json")
@@ -822,8 +822,8 @@ func startProcessThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // processThumbnailsBatch processes a batch of photos to create thumbnails.
-func processThumbnailsBatch(taskID, username string, filenames []string) {
-	log.Printf("Starting batch thumbnail generation for task %s, %d files", taskID, len(filenames))
+func processUploadedPhotosBatch(taskID, username string, filenames []string) {
+	log.Printf("Starting batch processing (thumbnails & previews) for task %s, %d files", taskID, len(filenames))
 	totalFiles := len(filenames)
 
 	for i, filename := range filenames {
@@ -842,13 +842,14 @@ func processThumbnailsBatch(taskID, username string, filenames []string) {
 		photo, err := getPhotoByFilename(filename)
 		if err == nil && photo.UploadedBy == username {
 			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-			createThumbnail(originalPath, photo.UploadedBy) // Error logging is inside createThumbnail
+			createThumbnail(originalPath, photo.UploadedBy) // Error logging is inside the function
+			createPreview(originalPath, photo.UploadedBy)   // Error logging is inside the function
 		} else {
-			log.Printf("Task %s: skipping thumbnail for %s (not found or permission denied)", taskID, filename)
+			log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
 		}
 	}
 
-	log.Printf("Batch thumbnail generation complete for task %s", taskID)
+	log.Printf("Batch processing complete for task %s", taskID)
 	updateTaskComplete(taskID, totalFiles)
 }
 

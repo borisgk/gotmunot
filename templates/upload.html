@@ -119,32 +119,32 @@
 
             // After all files are uploaded, trigger batch processing for thumbnails
             if (uploadedFilenames.length > 0) {
-                await startBatchThumbnailGeneration(uploadedFilenames);
+                await startBatchProcessing(uploadedFilenames);
             } else {
                 // If no files were successfully uploaded, just reset.
                 uploadForm.reset();
             }
         });
 
-        async function startBatchThumbnailGeneration(filenames) {
+        async function startBatchProcessing(filenames) {
             const progressModal = document.getElementById('progress-modal');
             const progressTitle = document.getElementById('progress-title');
             const progressText = document.getElementById('progress-text');
             const progressBar = document.getElementById('progress-bar');
 
-            progressTitle.textContent = 'Generating Thumbnails...';
+            progressTitle.textContent = 'Generating Thumbnails & Previews...';
             progressText.textContent = 'Starting batch processing...';
             progressBar.style.width = '0%';
             progressModal.style.display = 'block';
 
             try {
-                const response = await fetch('/api/photos/process-thumbnails', {
+                const response = await fetch('/api/photos/process-uploaded', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ filenames: filenames }),
                 });
 
-                if (!response.ok) throw new Error('Failed to start thumbnail generation.');
+                if (!response.ok) throw new Error('Failed to start post-upload processing.');
 
                 const { task_id } = await response.json();
                 
