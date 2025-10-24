@@ -28,7 +28,7 @@ window.pollTaskStatus = function(taskId, { onComplete, onCancel } = {}) {
 
             if (progress.complete) {
                 clearInterval(pollInterval);
-                progressText.textContent = 'Task complete! Reloading...';
+                progressText.textContent = 'Task complete!';
                 setTimeout(() => {
                     progressModal.style.display = 'none';
                     if (onComplete) onComplete();

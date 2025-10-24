@@ -116,9 +116,12 @@
             uploadStatus.innerHTML = '<h3>Upload Progress:</h3>';
             const totalStartTime = performance.now();
 
+            const uploadPromises = [];
             for (const file of files) {
-                await uploadFile(file); // Wait for one file to finish before starting the next
+                uploadPromises.push(uploadFile(file));
             }
+            // Wait for all uploads to complete concurrently.
+            await Promise.all(uploadPromises);
 
             const totalEndTime = performance.now();
             const totalDuration = ((totalEndTime - totalStartTime) / 1000).toFixed(2);
@@ -148,7 +151,7 @@
             progressText.textContent = 'Starting batch processing...';
             progressBar.style.width = '0%';
             progressModal.style.display = 'block';
-
+            const batchStartTime = performance.now(); // Record batch processing start time
             try {
                 const response = await fetch('/api/photos/process-uploaded', {
                     method: 'POST',
@@ -162,7 +165,19 @@
                 
                 // Poll for status. On completion, redirect to the gallery.
                 window.pollTaskStatus(task_id, {
-                    onComplete: () => window.location.href = '/gallery',
+                    onComplete: () => {
+                        const batchEndTime = performance.now();
+                        const batchDuration = ((batchEndTime - batchStartTime) / 1000).toFixed(2);
+                        const batchTimeElement = document.createElement('p');
+                        batchTimeElement.innerHTML = `<strong>Total processing time: ${batchDuration} seconds.</strong>`;
+                        const galleryButton = document.createElement('a');
+                        galleryButton.href = '/gallery';
+                        galleryButton.textContent = 'Back to Gallery';
+                        galleryButton.style.display = 'block'; // Make it appear on its own line
+                        galleryButton.style.marginTop = '1em';
+                        uploadStatus.appendChild(batchTimeElement);
+                        uploadStatus.appendChild(galleryButton);
+                    },
                 });
             } catch (error) {
                 alert(`Could not start batch processing: ${error.message}`);
