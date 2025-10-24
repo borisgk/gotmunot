@@ -14,6 +14,8 @@ import (
 
 var db *sql.DB
 var tmpl *template.Template
+var photosDB *sql.DB
+var insertPhotoStmt *sql.Stmt
 
 func init() {
 	fmt.Println("Initializing TM25...")

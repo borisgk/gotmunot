@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"database/sql"
-	"log"
 	"os"
 	"path/filepath"
 	"time"
