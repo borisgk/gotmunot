@@ -16,7 +16,6 @@ import (
 	_ "image/png"  // Import for PNG decoding
 
 	"github.com/chai2010/webp"
-	"github.com/disintegration/imaging"
 )
 
 // Response struct for JSON responses
@@ -94,8 +93,23 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// --- Save to a temporary file first ---
+	// This simplifies the flow by allowing us to read from a file on disk for all subsequent operations.
+	tempFile, err := os.CreateTemp("", "upload-*.tmp")
+	if err != nil {
+		handleUploadError(w, "Could not create temporary file", http.StatusInternalServerError, err)
+		return
+	}
+	defer os.Remove(tempFile.Name()) // Clean up the temp file
+	defer tempFile.Close()
+
+	if _, err := io.Copy(tempFile, file); err != nil {
+		handleUploadError(w, "Could not save to temporary file", http.StatusInternalServerError, err)
+		return
+	}
+
 	// --- EXIF Parsing (from memory) ---
-	exifInfo, exifReadSuccessfully := parseExifData(file)
+	exifInfo, exifReadSuccessfully := parseExifDataFromFile(tempFile.Name())
 
 	// Determine the date to use for the folder structure.
 	// Prioritize DateTimeOriginal, then DateTimeDigitized, then DateTime from EXIF, then fallback to the current time.
@@ -111,60 +125,24 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// If EXIF data did not contain dimensions, try to get them by decoding the image config.
 	// This is efficient as it doesn't decode the whole image.
 	if exifInfo.ImageWidth == 0 || exifInfo.ImageLength == 0 {
-		// We need to rewind the file to read the header.
-		if _, err := file.Seek(0, io.SeekStart); err != nil {
-			log.Printf("Could not rewind file to read image config for %s: %v", header.Filename, err)
-		} else {
-			config, _, err := image.DecodeConfig(file)
-			if err != nil {
-				log.Printf("Could not decode image config for %s: %v", header.Filename, err)
-			} else {
+		if f, err := os.Open(tempFile.Name()); err == nil {
+			defer f.Close()
+			config, _, err := image.DecodeConfig(f)
+			if err == nil {
 				exifInfo.ImageWidth = uint32(config.Width)
 				exifInfo.ImageLength = uint32(config.Height)
 			}
 		}
 	}
 
-	// Rewind the file reader to the beginning so it can be saved to disk
-	_, err = file.Seek(0, io.SeekStart)
+	// Move the temporary file to its final, permanent location.
+	newFilePath, newFilename, relativePath, err := moveAndSaveFile(tempFile.Name(), header.Filename, photoDate, username)
 	if err != nil {
-		log.Printf("Error seeking file %s: %v", header.Filename, err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(uploadResponse{
-			Status:  "error",
-			Message: "Could not process file",
-		})
+		handleUploadError(w, "Could not save file to permanent storage", http.StatusInternalServerError, err)
 		return
 	}
 
-	// Move the file to the correct folder
-	newFilePath, newFilename, relativePath, err := saveUploadedFile(file, header.Filename, photoDate, username)
-	if err != nil {
-		log.Printf("Error moving file %s: %v", header.Filename, err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(uploadResponse{
-			Status:  "error",
-			Message: "Could not save file",
-		})
-		return
-	}
 	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
-
-	// Start thumbnail and preview generation in the background.
-	// This allows the handler to return a response to the client immediately.
-	go func(path, name, user string) {
-		if err := createThumbnail(path, user); err != nil {
-			log.Printf("Warning: failed to create thumbnail for %s: %v", name, err)
-		}
-	}(newFilePath, newFilename, username)
-
-	go func(path, name, user string) {
-		if err := createPreview(path, user); err != nil {
-			log.Printf("Warning: failed to create preview for %s: %v", name, err)
-		}
-	}(newFilePath, newFilename, username)
 
 	// Create a PhotoMetadata struct to hold all the data.
 	photoData := &PhotoMetadata{
@@ -192,8 +170,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// saveUploadedFile saves the uploaded file to the uploads directory with a unique name.
-func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Time, username string) (string, string, string, error) {
+// handleUploadError is a helper to standardize JSON error responses for the upload handler.
+func handleUploadError(w http.ResponseWriter, message string, statusCode int, err error) {
+	log.Printf("Upload error: %s - %v", message, err)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(uploadResponse{
+		Status:  "error",
+		Message: message,
+	})
+}
+
+// parseExifDataFromFile opens a file from its path and parses EXIF data.
+func parseExifDataFromFile(filePath string) (ExifInfo, bool) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		log.Printf("Could not open file %s for EXIF parsing: %v", filePath, err)
+		return ExifInfo{}, false
+	}
+	defer file.Close()
+	return parseExifData(file)
+}
+
+// moveAndSaveFile moves a file from a temporary path to its final destination
+// in the uploads directory with a unique name based on the photo's date.
+func moveAndSaveFile(tempPath, originalFilename string, photoDate time.Time, username string) (string, string, string, error) {
 	// Get date parts from the provided photoDate to create the directory structure.
 	year := photoDate.Format("2006")
 	month := photoDate.Format("01")
@@ -211,20 +212,12 @@ func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Ti
 	relativePath := filepath.Join(year, month, day, newFilename)
 	newFilePath := filepath.Join(targetDir, newFilename)
 
-	// Create the new file
-	newFile, err := os.Create(newFilePath)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to create new file: %w", err)
+	// Move the file from the temporary path to the new path.
+	// os.Rename is an atomic operation on most filesystems.
+	if err := os.Rename(tempPath, newFilePath); err != nil {
+		return "", "", "", fmt.Errorf("failed to move temp file to final destination: %w", err)
 	}
-	defer newFile.Close()
 
-	// Copy the file content
-	_, err = io.Copy(newFile, file)
-	if err != nil {
-		// If copy fails, we should remove the partially created file.
-		os.Remove(newFilePath)
-		return "", "", "", fmt.Errorf("failed to copy file content: %w", err)
-	}
 	return newFilePath, newFilename, relativePath, nil
 }
 

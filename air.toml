@@ -1,0 +1,54 @@
+# Config file for Air - https://github.com/cosmtrek/air
+# This configuration is for a development server that builds release-optimized binaries.
+
+# The working directory for the project.
+root = "."
+# The directory where temporary files, including the binary, will be stored.
+tmp_dir = "tmp"
+
+[build]
+# The command to build the application.
+# The -ldflags="-s -w" part is crucial for creating a "release" build.
+# -s: Omit the symbol table and debug information.
+# -w: Omit the DWARF symbol table.
+# This significantly reduces the size of the final executable.
+cmd = "go build -ldflags='-s -w' -o ./tmp/tm25 ."
+
+# The binary file that will be executed after a successful build.
+bin = "tmp/tm25"
+
+# A command to run the binary. You can set environment variables here.
+full_bin = "./tmp/tm25"
+
+# File extensions to watch for changes.
+include_ext = ["go", "html", "css", "js"]
+
+# Directories to ignore when watching for changes.
+exclude_dir = ["tmp", "data", "vendor"]
+
+# It's not necessary to trigger a build on every file change if it's too frequent.
+delay = 1000 # milliseconds
+
+# Stop running the old binary if a build error occurs.
+stop_on_error = true
+
+# Send an interrupt signal before killing the process.
+send_interrupt = false
+
+# Delay after sending the interrupt signal.
+kill_delay = 500 # milliseconds
+
+[log]
+# Show timestamps in the log output.
+time = true
+
+[color]
+# Customize colors for different parts of the output.
+main = "magenta"
+watcher = "cyan"
+build = "yellow"
+runner = "green"
+
+[misc]
+# Delete the temporary directory on exit.
+clean_on_exit = true
