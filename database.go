@@ -23,14 +23,6 @@ type PhotoMetadata struct {
 	DateTime         time.Time
 }
 
-// AspectRatio calculates the width/height ratio of the photo.
-// It returns a default of 3:2 if dimensions are not available.
-func (p *PhotoMetadata) AspectRatio() float64 {
-	if p.ImageWidth > 0 && p.ImageLength > 0 {
-		return float64(p.ImageWidth) / float64(p.ImageLength)
-	}
-	return 1.5 // Default to a 3:2 aspect ratio
-}
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
 func getPhotos(username string, year int) ([]PhotoMetadata, error) {
