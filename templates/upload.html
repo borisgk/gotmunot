@@ -9,6 +9,32 @@
             font-family: 'Open Sans', sans-serif;
             margin: 2em;
         }
+        .upload-item {
+            margin-bottom: 0.5em;
+        }
+        .upload-item-label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 0.9em;
+        }
+        .upload-item-placeholder {
+            padding: 5px;
+            font-size: 0.9em;
+            color: #555;
+            border-bottom: 1px solid #eee;
+        }
+        .progress-bar-container {
+            width: 100%;
+            background-color: #e0e0e0;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            width: 0;
+            height: 10px;
+            background-color: #4caf50;
+            transition: width 0.2s ease-in-out;
+        }
     </style>
 </head>
 <body>
@@ -51,20 +77,36 @@
         const uploadStatus = document.getElementById('upload-status');
         const uploadedFilenames = []; // To store filenames for batch processing
 
-        function uploadFile(file) {
+        function uploadFile(file, itemContainer, onCompleteCallback) {
             return new Promise((resolve, reject) => {
                 const formData = new FormData();
                 formData.append('photo', file);
 
                 const xhr = new XMLHttpRequest();
-                const statusElement = document.createElement('div');
-                uploadStatus.appendChild(statusElement);
+
+                // The itemContainer is the placeholder div. We now populate it with the progress bar.
+                itemContainer.innerHTML = ''; // Clear the placeholder text
+                itemContainer.className = 'upload-item';
+
+                const itemLabel = document.createElement('div');
+                itemLabel.className = 'upload-item-label';
+                itemLabel.textContent = `Uploading ${file.name}...`;
+                
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-bar-container';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                
+                progressContainer.appendChild(progressBar);
+                itemContainer.appendChild(itemLabel);
+                itemContainer.appendChild(progressContainer);
+
                 const startTime = performance.now(); // Record start time
 
                 xhr.upload.addEventListener('progress', (event) => {
                     if (event.lengthComputable) {
                         const percentComplete = Math.round((event.loaded / event.total) * 100);
-                        statusElement.textContent = `Uploading ${file.name}: ${percentComplete}%`;
+                        progressBar.style.width = `${percentComplete}%`;
                     }
                 });
 
@@ -75,26 +117,24 @@
                         try {
                             const result = JSON.parse(xhr.responseText);
                             if (result.status === 'success') {
-                                let successMessage = `✅ ${file.name} - ${result.message} (Uploaded in ${duration}s)`;
                                 uploadedFilenames.push(result.filename); // Collect filename
-                                if (result.exifRead) {
-                                    successMessage += " (EXIF data read)";
-                                }
-                                statusElement.textContent = successMessage;
+                                itemContainer.remove(); // Remove the item from the DOM on success
                             } else {
-                                statusElement.textContent = `❌ ${file.name} - Error: ${result.message}`;
+                                itemContainer.innerHTML = `❌ ${file.name} - Error: ${result.message}`;
                             }
                         } catch (e) {
-                            statusElement.textContent = `❌ ${file.name} - Error parsing server response.`;
+                            itemContainer.innerHTML = `❌ ${file.name} - Error parsing server response.`;
                         }
                     } else {
-                        statusElement.textContent = `❌ ${file.name} - Server error: ${xhr.statusText}`;
+                        itemContainer.innerHTML = `❌ ${file.name} - Server error: ${xhr.statusText}`;
                     }
+                    if (onCompleteCallback) onCompleteCallback();
                     resolve();
                 });
 
                 xhr.addEventListener('error', () => {
-                    statusElement.textContent = `❌ ${file.name} - Network or server error.`;
+                    itemContainer.innerHTML = `❌ ${file.name} - Network or server error.`;
+                    if (onCompleteCallback) onCompleteCallback();
                     resolve(); // Resolve so the next file can start
                 });
 
@@ -113,8 +153,30 @@
             }
             uploadedFilenames.length = 0; // Clear previous uploads
             uploadButton.disabled = true;
-            uploadStatus.innerHTML = '<h3>Upload Progress:</h3>';
+
+            const totalFiles = files.length;
+            let completedCount = 0;
+            const progressHeading = document.createElement('h3');
+            const updateHeading = () => {
+                progressHeading.textContent = `Upload Progress (${completedCount}/${totalFiles})`;
+            };
+            updateHeading(); // Initial text
+            uploadStatus.innerHTML = ''; // Clear previous content
+            uploadStatus.appendChild(progressHeading);
+
             const totalStartTime = performance.now();
+
+            // Create a map to hold file-to-element references
+            const fileElementMap = new Map();
+
+            // Pre-populate the UI with all filenames as placeholders
+            for (const file of files) {
+                const itemContainer = document.createElement('div');
+                itemContainer.className = 'upload-item-placeholder';
+                itemContainer.textContent = file.name;
+                uploadStatus.appendChild(itemContainer);
+                fileElementMap.set(file, itemContainer);
+            }
 
             // --- Concurrent upload with a limit ---
             const concurrencyLimit = 5;
@@ -123,7 +185,10 @@
             async function worker() {
                 while (queue.length > 0) {
                     const file = queue.shift(); // Get the next file from the queue
-                    await uploadFile(file);
+                    await uploadFile(file, fileElementMap.get(file), () => {
+                        completedCount++;
+                        updateHeading();
+                    });
                 }
             }
 
@@ -159,6 +224,9 @@
             const progressText = document.getElementById('progress-text');
             const progressBar = document.getElementById('progress-bar');
 
+            // Clear the individual file upload status lines from the view.
+            document.querySelectorAll('#upload-status .upload-item').forEach(item => item.remove());
+
             progressTitle.textContent = 'Generating Thumbnails & Previews...';
             progressText.textContent = 'Starting batch processing...';
             progressBar.style.width = '0%';
@@ -180,15 +248,13 @@
                     onComplete: () => {
                         const batchEndTime = performance.now();
                         const batchDuration = ((batchEndTime - batchStartTime) / 1000).toFixed(2);
-                        const batchTimeElement = document.createElement('p');
-                        batchTimeElement.innerHTML = `<strong>Total processing time: ${batchDuration} seconds.</strong>`;
-                        const galleryButton = document.createElement('a');
-                        galleryButton.href = '/gallery';
-                        galleryButton.textContent = 'Back to Gallery';
-                        galleryButton.style.display = 'block'; // Make it appear on its own line
-                        galleryButton.style.marginTop = '1em';
-                        uploadStatus.appendChild(batchTimeElement);
-                        uploadStatus.appendChild(galleryButton);
+                        const finalMessage = document.createElement('p');
+                        finalMessage.innerHTML = `<strong>Total processing time: ${batchDuration} seconds.</strong><br>Redirecting to gallery...`;
+                        uploadStatus.appendChild(finalMessage);
+
+                        setTimeout(() => {
+                            window.location.href = '/gallery';
+                        }, 2000); // Wait 2 seconds before redirecting
                     },
                 });
             } catch (error) {
