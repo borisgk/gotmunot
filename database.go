@@ -86,47 +86,11 @@ func initPhotosDB() {
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			filename TEXT,
 			filepath TEXT UNIQUE,
-			filesize INTEGER,
-			content_type TEXT,
 			uploaded_by TEXT,
 			uploaded_at DATETIME,
-			make TEXT,
-			model TEXT,
-			image_description TEXT,
 			image_width INTEGER,
 			image_length INTEGER,
-			x_resolution REAL,
-			y_resolution REAL,
-			resolution_unit INTEGER,
-			orientation INTEGER,
-			software TEXT,
-			date_time DATETIME,
-			artist TEXT,
-			copyright TEXT,
-			exposure_time TEXT,
-			exposure_program INTEGER,
-			f_number REAL,
-			iso_speed_ratings INTEGER,
-			shutter_speed_value TEXT,
-			aperture_value REAL,
-			exposure_bias_value TEXT,
-			max_aperture_value REAL,
-			metering_mode INTEGER,
-			light_source INTEGER,
-			flash INTEGER,
-			focal_length REAL,
-			focal_length_in_35mm_film INTEGER,
-			lens_make TEXT,
-			lens_model TEXT,
-			date_time_original DATETIME,
-			date_time_digitized DATETIME,
-			subsec_time TEXT,
-			gps_lat REAL,
-			gps_lon REAL,
-			gps_altitude REAL,
-			gps_timestamp DATETIME,
-			gps_speed REAL,
-			gps_img_direction REAL
+			date_time DATETIME
 		)
 	`)
 	if err != nil {
@@ -137,16 +101,10 @@ func initPhotosDB() {
 	// This is more efficient as the SQL is parsed only once.
 	insertPhotoStmt, err = photosDB.Prepare(`
 		INSERT INTO photos (
-			filename, filepath, filesize, content_type, uploaded_by, uploaded_at, 
-			make, model, image_description, image_width, image_length, x_resolution, y_resolution, 
-			resolution_unit, orientation, software, date_time, artist, copyright,
-			exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value, 
-			aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash, 
-			focal_length, focal_length_in_35mm_film, lens_make, lens_model, 
-			date_time_original, date_time_digitized, subsec_time, 
-			gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+			filename, filepath, uploaded_by, uploaded_at, 
+			image_width, image_length, date_time
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		VALUES (?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		log.Fatalf("Error preparing insert photo statement: %v", err)
 	}
@@ -156,23 +114,16 @@ func initPhotosDB() {
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
 func getPhotos(username string, year int) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
-		make, model, image_description, image_width, image_length, x_resolution, y_resolution,
-		resolution_unit, orientation, software, date_time, artist, copyright,
-		exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
-		aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
-		focal_length, focal_length_in_35mm_film, lens_make, lens_model,
-		date_time_original, date_time_digitized, subsec_time,
-		gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time
 		FROM photos WHERE uploaded_by = ?`
 	args := []interface{}{username}
 
 	if year > 0 {
-		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		query += " AND CAST(SUBSTR(date_time, 1, 4) AS INTEGER) = ?"
 		args = append(args, year)
 	}
 
-	query += ` ORDER BY COALESCE(date_time_original, date_time, uploaded_at) DESC`
+	query += ` ORDER BY date_time DESC`
 
 	return queryPhotos(query, args...)
 }
@@ -184,7 +135,7 @@ func getTotalPhotoCount(username string, year int) (int, error) {
 	args := []interface{}{username}
 
 	if year > 0 {
-		query += " AND CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) = ?"
+		query += " AND CAST(SUBSTR(date_time, 1, 4) AS INTEGER) = ?"
 		args = append(args, year)
 	}
 
@@ -200,14 +151,8 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 	var p PhotoMetadata
 	row := photosDB.QueryRow(`
         SELECT 
-            id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at, 
-            make, model, image_description, image_width, image_length, x_resolution, y_resolution, 
-            resolution_unit, orientation, software, date_time, artist, copyright, 
-            exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value, 
-            aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash, 
-            focal_length, focal_length_in_35mm_film, lens_make, lens_model, 
-            date_time_original, date_time_digitized, subsec_time, 
-            gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
+            id, filename, filepath, uploaded_by, uploaded_at, 
+            image_width, image_length, date_time
         FROM photos
         WHERE filename = ?
     `, filename)
@@ -224,7 +169,7 @@ func getDistinctYears(username string) ([]int, error) {
 	// Use COALESCE to find the best available date for each photo, then extract the year.
 	// The order is: EXIF original date, EXIF modification date, then upload date.
 	rows, err := photosDB.Query(`
-		SELECT DISTINCT CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) as year
+		SELECT DISTINCT CAST(SUBSTR(date_time, 1, 4) AS INTEGER) as year
 		FROM photos
 		WHERE uploaded_by = ? 
 		AND year IS NOT NULL
@@ -250,7 +195,7 @@ func getDistinctYears(username string) ([]int, error) {
 func getPhotoCountsByYear(username string) (map[int]int, error) {
 	rows, err := photosDB.Query(`
 		SELECT
-			CAST(SUBSTR(COALESCE(date_time_original, date_time, uploaded_at), 1, 4) AS INTEGER) as year,
+			CAST(SUBSTR(date_time, 1, 4) AS INTEGER) as year,
 			COUNT(*) as count
 		FROM photos
 		WHERE uploaded_by = ? AND year IS NOT NULL
@@ -274,15 +219,8 @@ func getPhotoCountsByYear(username string) (map[int]int, error) {
 
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
 func getAllPhotos(username string) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, filesize, content_type, uploaded_by, uploaded_at,
-		make, model, image_description, image_width, image_length, x_resolution, y_resolution,
-		resolution_unit, orientation, software, date_time, artist, copyright,
-		exposure_time, exposure_program, f_number, iso_speed_ratings, shutter_speed_value,
-		aperture_value, exposure_bias_value, max_aperture_value, metering_mode, light_source, flash,
-		focal_length, focal_length_in_35mm_film, lens_make, lens_model,
-		date_time_original, date_time_digitized, subsec_time,
-		gps_lat, gps_lon, gps_altitude, gps_timestamp, gps_speed, gps_img_direction
-		FROM photos WHERE uploaded_by = ? ORDER BY id`
+	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time
+		FROM photos WHERE uploaded_by = ? ORDER BY date_time`
 	return queryPhotos(query, username)
 }
 
@@ -307,14 +245,8 @@ func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
 // savePhotoMetadata saves photo metadata to the database.
 func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 	result, err := insertPhotoStmt.Exec(
-		p.Filename, p.Filepath, p.Filesize, p.ContentType, p.UploadedBy, p.UploadedAt,
-		p.Make, p.Model, p.ImageDescription, p.ImageWidth, p.ImageLength, p.XResolution, p.YResolution,
-		p.ResolutionUnit, p.Orientation, p.Software, p.DateTime, p.Artist, p.Copyright,
-		p.ExposureTime, p.ExposureProgram, p.FNumber, p.ISOSpeedRatings, p.ShutterSpeedValue,
-		p.ApertureValue, p.ExposureBiasValue, p.MaxApertureValue, p.MeteringMode, p.LightSource, p.Flash,
-		p.FocalLength, p.FocalLengthIn35mmFilm, p.LensMake, p.LensModel,
-		p.DateTimeOriginal, p.DateTimeDigitized, p.SubSecTime,
-		p.GPSLat, p.GPSLon, p.GPSAltitude, p.GPSTimeStamp, p.GPSSpeed, p.GPSImgDirection,
+		p.Filename, p.Filepath, p.UploadedBy, p.UploadedAt,
+		p.ImageWidth, p.ImageLength, p.DateTime,
 	)
 	if err != nil {
 		return 0, err
@@ -353,7 +285,7 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 
 	// If the path hasn't changed, we only need to update the date in the DB.
 	if newRelativePath == photo.Filepath {
-		_, err := photosDB.Exec("UPDATE photos SET date_time_original = ? WHERE filename = ?", newDate, filename)
+		_, err := photosDB.Exec("UPDATE photos SET date_time = ? WHERE filename = ?", newDate, filename)
 		return err
 	}
 
@@ -377,7 +309,7 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 	defer tx.Rollback()
 
 	// 1. Update the database record with the new date and path.
-	stmt, err := tx.Prepare("UPDATE photos SET date_time_original = ?, filepath = ? WHERE filename = ?")
+	stmt, err := tx.Prepare("UPDATE photos SET date_time = ?, filepath = ? WHERE filename = ?")
 	if err != nil {
 		return err
 	}
@@ -407,72 +339,28 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 // scanPhoto is a helper to scan a photo row into a PhotoMetadata struct.
 func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata) error {
 	// Use sql.Null types for scanning to handle potential NULL values from the database.
-	var make, model, imageDescription, software, artist, copyright, exposureTime, shutterSpeedValue, exposureBiasValue, lensMake, lensModel, subSecTime sql.NullString
-	var imageWidth, imageLength, resolutionUnit, orientation, exposureProgram, isoSpeedRatings, meteringMode, lightSource, flash, focalLengthIn35mmFilm sql.NullInt64
-	var xResolution, yResolution, fNumber, apertureValue, maxApertureValue, focalLength, gpsLat, gpsLon, gpsAltitude, gpsSpeed, gpsImgDirection sql.NullFloat64
-	var dateTime, dateTimeOriginal, dateTimeDigitized, gpsTimestamp sql.NullTime
+	var imageWidth, imageLength sql.NullInt64
+	var dateTime sql.NullTime
 
 	err := scanner.Scan(
-		&p.ID, &p.Filename, &p.Filepath, &p.Filesize, &p.ContentType, &p.UploadedBy, &p.UploadedAt,
-		&make, &model, &imageDescription, &imageWidth, &imageLength, &xResolution, &yResolution,
-		&resolutionUnit, &orientation, &software, &dateTime, &artist, &copyright,
-		&exposureTime, &exposureProgram, &fNumber, &isoSpeedRatings, &shutterSpeedValue,
-		&apertureValue, &exposureBiasValue, &maxApertureValue, &meteringMode, &lightSource, &flash,
-		&focalLength, &focalLengthIn35mmFilm, &lensMake, &lensModel,
-		&dateTimeOriginal, &dateTimeDigitized, &subSecTime,
-		&gpsLat, &gpsLon, &gpsAltitude, &gpsTimestamp, &gpsSpeed, &gpsImgDirection,
+		&p.ID, &p.Filename, &p.Filepath, &p.UploadedBy, &p.UploadedAt,
+		&imageWidth, &imageLength, &dateTime,
 	)
 	if err != nil {
 		return err
 	}
 
 	// Assign values from sql.Null types to the struct, falling back to zero values if NULL.
-	p.Make = make.String
-	p.Model = model.String
-	p.ImageDescription = imageDescription.String
 	p.ImageWidth = imageWidth.Int64
 	p.ImageLength = imageLength.Int64
-	p.XResolution = xResolution.Float64
-	p.YResolution = yResolution.Float64
-	p.ResolutionUnit = resolutionUnit.Int64
-	p.Orientation = orientation.Int64
-	p.Software = software.String
 	p.DateTime = dateTime.Time
-	p.Artist = artist.String
-	p.Copyright = copyright.String
-	p.ExposureTime = exposureTime.String
-	p.ExposureProgram = exposureProgram.Int64
-	p.FNumber = fNumber.Float64
-	p.ISOSpeedRatings = isoSpeedRatings.Int64
-	p.ShutterSpeedValue = shutterSpeedValue.String
-	p.ApertureValue = apertureValue.Float64
-	p.ExposureBiasValue = exposureBiasValue.String
-	p.MaxApertureValue = maxApertureValue.Float64
-	p.MeteringMode = meteringMode.Int64
-	p.LightSource = lightSource.Int64
-	p.Flash = flash.Int64
-	p.FocalLength = focalLength.Float64
-	p.FocalLengthIn35mmFilm = focalLengthIn35mmFilm.Int64
-	p.LensMake = lensMake.String
-	p.LensModel = lensModel.String
-	p.DateTimeOriginal = dateTimeOriginal.Time
-	p.DateTimeDigitized = dateTimeDigitized.Time
-	p.SubSecTime = subSecTime.String
-	p.GPSLat = gpsLat.Float64
-	p.GPSLon = gpsLon.Float64
-	p.GPSAltitude = gpsAltitude.Float64
-	p.GPSTimeStamp = gpsTimestamp.Time
-	p.GPSSpeed = gpsSpeed.Float64
-	p.GPSImgDirection = gpsImgDirection.Float64
 
 	return nil
 }
 
 // getPhotoDateString returns the date part of a photo's most relevant timestamp.
 func getPhotoDateString(p *PhotoMetadata) string {
-	if !p.DateTimeOriginal.IsZero() {
-		return p.DateTimeOriginal.Format("2006-01-02")
-	} else if !p.DateTime.IsZero() {
+	if !p.DateTime.IsZero() {
 		return p.DateTime.Format("2006-01-02")
 	} else {
 		return p.UploadedAt.Format("2006-01-02")

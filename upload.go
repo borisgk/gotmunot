@@ -98,10 +98,12 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	exifInfo, exifReadSuccessfully := parseExifData(file)
 
 	// Determine the date to use for the folder structure.
-	// Prioritize DateTimeOriginal from EXIF, then DateTime from EXIF, then fallback to the current time.
+	// Prioritize DateTimeOriginal, then DateTimeDigitized, then DateTime from EXIF, then fallback to the current time.
 	photoDate := time.Now()
 	if !exifInfo.DateTimeOriginal.IsZero() {
 		photoDate = exifInfo.DateTimeOriginal
+	} else if !exifInfo.DateTimeDigitized.IsZero() {
+		photoDate = exifInfo.DateTimeDigitized
 	} else if !exifInfo.DateTime.IsZero() {
 		photoDate = exifInfo.DateTime
 	}
@@ -172,7 +174,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		ContentType:           contentType,
 		UploadedBy:            username,
 		UploadedAt:            time.Now(),
-		Make:                  exifInfo.Make,
+		DateTime:              photoDate, // Use the determined best date
 		Model:                 exifInfo.Model,
 		ImageDescription:      exifInfo.ImageDescription,
 		ImageWidth:            int64(exifInfo.ImageWidth),
@@ -181,8 +183,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		YResolution:           exifInfo.YResolution,
 		ResolutionUnit:        int64(exifInfo.ResolutionUnit),
 		Orientation:           int64(exifInfo.Orientation),
-		Software:              exifInfo.Software,
-		DateTime:              exifInfo.DateTime,
+		Software:              exifInfo.Software, // Keep for now, will be saved to details table
 		Artist:                exifInfo.Artist,
 		Copyright:             exifInfo.Copyright,
 		ExposureTime:           exifInfo.ExposureTime,

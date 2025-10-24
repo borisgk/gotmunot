@@ -52,7 +52,7 @@
 				</div>
 				<div class="photo-gallery">
 					{{range .Photos}}
-					<div class="photo-item" data-year="{{(or .DateTimeOriginal .DateTime .UploadedAt).Year}}" width="{{.ImageWidth}}" height="auto">
+					<div class="photo-item" data-year="{{.DateTime.Year}}" width="{{.ImageWidth}}" height="auto">
 						<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
 						<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
 							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ImageWidth}}" height="auto">
