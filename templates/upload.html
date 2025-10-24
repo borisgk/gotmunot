@@ -59,6 +59,7 @@
                 const xhr = new XMLHttpRequest();
                 const statusElement = document.createElement('div');
                 uploadStatus.appendChild(statusElement);
+                const startTime = performance.now(); // Record start time
 
                 xhr.upload.addEventListener('progress', (event) => {
                     if (event.lengthComputable) {
@@ -68,11 +69,13 @@
                 });
 
                 xhr.addEventListener('load', () => {
+                    const endTime = performance.now(); // Record end time
+                    const duration = ((endTime - startTime) / 1000).toFixed(2); // Calculate duration in seconds
                     if (xhr.status >= 200 && xhr.status < 300) {
                         try {
                             const result = JSON.parse(xhr.responseText);
                             if (result.status === 'success') {
-                                let successMessage = `✅ ${file.name} - ${result.message}`;
+                                let successMessage = `✅ ${file.name} - ${result.message} (Uploaded in ${duration}s)`;
                                 uploadedFilenames.push(result.filename); // Collect filename
                                 if (result.exifRead) {
                                     successMessage += " (EXIF data read)";
