@@ -103,6 +103,9 @@ func main() {
 	http.Handle("/static/css/", http.StripPrefix("/static/css/", http.FileServer(http.Dir("static/css"))))
 	http.Handle("/static/js/", http.StripPrefix("/static/js/", http.FileServer(http.Dir("static/js"))))
 	http.Handle("/static/fonts/", http.StripPrefix("/static/fonts/", http.FileServer(http.Dir("static/fonts"))))
+	http.HandleFunc("/logo.png", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "logo.png")
+	})
 
 	// Securely serve all media (originals, thumbs, previews) from the photoUploadDir.
 	http.HandleFunc("/media/", func(w http.ResponseWriter, r *http.Request) {

@@ -4,10 +4,14 @@
     <title>Upload Photos</title>
     <!-- Link to locally hosted fonts -->
     <link rel="stylesheet" href="/static/css/fonts.css">
+    <link rel="stylesheet" href="/static/css/gallery.css">
     <style>
         body {
             font-family: 'Open Sans', sans-serif;
-            margin: 2em;
+            padding-top: 70px; /* Space for the fixed top nav */
+        }
+        .content-wrapper {
+            padding: 0 2em; /* Add horizontal padding */
         }
         .upload-item {
             margin-bottom: 0.5em;
@@ -50,19 +54,28 @@
     </style>
 </head>
 <body>
-    <h1>Upload Photos</h1>
-    <p>Welcome, {{.Username}}!</p>
+    <div class="top-nav">
+		<img src="/logo.png" alt="Logo" class="logo">
+		<a href="/gallery">Gallery</a>
+		<a href="/upload-page">Upload</a>
+		<a href="/service">Service</a>
+		<div class="top-nav-right">
+			<a href="/logout">Logout ({{.Username}})</a>
+		</div>
+	</div>
 
-    <hr>
-    <h2>Upload Files</h2>
-    <form id="uploadForm">
-        <div>
-            <label for="photo">Select files:</label>
-            <input type="file" id="photo" name="photo" multiple>
-            <button type="submit" id="uploadButton">Upload</button>
-        </div>
-    </form>
+    <div class="content-wrapper">
+        <h2>Upload Files</h2>
+        <form id="uploadForm">
+            <div>
+                <label for="photo">Select files:</label>
+                <input type="file" id="photo" name="photo" multiple>
+                <button type="submit" id="uploadButton">Upload</button>
+            </div>
+        </form>
 
+        <div id="upload-status" style="margin-top: 20px;"></div>
+    </div>
     <script src="/static/js/task-poller.js"></script>
 
     <!-- The Progress Modal (for batch processing after upload) -->
@@ -77,10 +90,6 @@
             <button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
         </div>
     </div>
-
-
-    <div id="upload-status" style="margin-top: 20px;"></div>
-    <a href="/gallery">Back to Gallery</a> | <a href="/logout">Logout</a>
 
     <script>
         const uploadForm = document.getElementById('uploadForm');
