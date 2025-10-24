@@ -26,6 +26,7 @@ type TaskProgress struct {
 	Error     string `json:"error,omitempty"`
 	Cancelled bool   `json:"cancelled,omitempty"`
 	DownloadURL string `json:"download_url,omitempty"`
+	GeneratedThumbnails []string `json:"generated_thumbnails,omitempty"`
 }
 
 // taskProgressMap safely stores the progress of multiple concurrent tasks.
@@ -858,21 +859,25 @@ func processUploadedPhotosBatch(taskID, username string, filenames []string) {
 	// The number of workers is limited to the number of CPU cores to avoid overwhelming the system.
 	numWorkers := runtime.NumCPU()
 	jobs := make(chan string, totalFiles)
-	progressChan := make(chan string, totalFiles)
+	type progressUpdate struct {
+		Filename string
+		ThumbURL string
+	}
+	progressChan := make(chan progressUpdate, totalFiles)
 	var wg sync.WaitGroup
 
 	// Start a dedicated goroutine to listen for progress updates.
 	// This ensures that updates to the shared task map are serialized and correct.
 	var processedCount int
 	go func() {
-		for filename := range progressChan {
+		for update := range progressChan {
 			processedCount++
 			taskProgressMap.RLock()
 			cancelled := taskProgressMap.tasks[taskID].Cancelled
 			taskProgressMap.RUnlock()
 
 			if !cancelled {
-				updateTaskProgress(taskID, processedCount, filename)
+				updateTaskProgress(taskID, processedCount, update.Filename, update.ThumbURL)
 			}
 		}
 	}()
@@ -895,18 +900,22 @@ func processUploadedPhotosBatch(taskID, username string, filenames []string) {
 					return
 				}
 
-				// Report progress *before* starting the heavy work.
-				progressChan <- filename
-
 				// Process the image
+				var thumbURL string
 				photo, err := getPhotoByFilename(filename)
 				if err == nil && photo.UploadedBy == username {
 					originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-					createThumbnail(originalPath, photo.UploadedBy)
+					if err := createThumbnail(originalPath, photo.UploadedBy); err == nil {
+						// If thumbnail is created successfully, construct its URL.
+						thumbURL = "/media/" + filepath.ToSlash(filepath.Join(photo.UploadedBy, "thumbs", photo.Filepath+".webp"))
+					}
 					createPreview(originalPath, photo.UploadedBy)
 				} else {
 					log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
 				}
+
+				// Report progress *after* the heavy work is done, including the thumb URL.
+				progressChan <- progressUpdate{Filename: filename, ThumbURL: thumbURL}
 			}
 		}()
 	}
@@ -939,12 +948,15 @@ func updateTaskCancelled(taskID string) {
 	}
 }
 
-func updateTaskProgress(taskID string, processed int, filename string) {
+func updateTaskProgress(taskID string, processed int, filename string, thumbURL string) {
 	taskProgressMap.Lock()
 	defer taskProgressMap.Unlock()
 	if task, ok := taskProgressMap.tasks[taskID]; ok {
 		task.Processed = processed
 		task.Filename = filename
+		if thumbURL != "" {
+			task.GeneratedThumbnails = append(task.GeneratedThumbnails, thumbURL)
+		}
 	}
 }
 

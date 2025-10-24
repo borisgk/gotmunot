@@ -12,6 +12,7 @@ window.pollTaskStatus = function(taskId, { onComplete, onCancel } = {}) {
     const progressText = document.getElementById('progress-text');
     const progressBar = document.getElementById('progress-bar');
     const cancelBtn = document.getElementById('progress-cancel-btn');
+    let displayedThumbCount = 0; // Keep track of how many thumbs we've shown
 
     let pollInterval = setInterval(async () => {
         try {
@@ -23,6 +24,15 @@ window.pollTaskStatus = function(taskId, { onComplete, onCancel } = {}) {
             const percent = progress.total > 0 ? (progress.processed / progress.total) * 100 : 0;
             progressBar.style.width = `${percent}%`;
             progressText.textContent = `Processing ${progress.processed || 0} of ${progress.total || 0}: ${progress.filename || ''}`;
+
+            // Check for new thumbnails to display
+            if (progress.generated_thumbnails && progress.generated_thumbnails.length > displayedThumbCount) {
+                const newThumbs = progress.generated_thumbnails.slice(displayedThumbCount);
+                if (typeof window.addThumbnailToGrid === 'function') {
+                    newThumbs.forEach(thumbUrl => window.addThumbnailToGrid(thumbUrl));
+                }
+                displayedThumbCount = progress.generated_thumbnails.length;
+            }
 
             if (progress.error) throw new Error(progress.error);
 

@@ -35,6 +35,20 @@
             background-color: #4caf50;
             transition: width 0.2s ease-in-out;
         }
+        #thumbnail-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin-top: 1em;
+            max-height: 220px; /* 2 rows of 100px + gaps */
+            overflow-y: auto;
+        }
+        #thumbnail-grid img {
+            width: 100px;
+            height: 100px;
+            object-fit: cover;
+            border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -61,13 +75,13 @@
             <div class="progress-bar-container">
                 <div id="progress-bar" class="progress-bar"></div>
             </div>
+            <div id="thumbnail-grid"></div>
             <button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
         </div>
     </div>
 
 
     <div id="upload-status" style="margin-top: 20px;"></div>
-
     <a href="/gallery">Back to Gallery</a> | <a href="/logout">Logout</a>
 
     <script>
@@ -218,6 +232,14 @@
             }
         });
 
+        // This function will be called by the task poller.
+        window.addThumbnailToGrid = (thumbUrl) => {
+            const grid = document.getElementById('thumbnail-grid');
+            const img = document.createElement('img');
+            img.src = thumbUrl;
+            grid.appendChild(img);
+        };
+
         async function startBatchProcessing(filenames) {
             const progressModal = document.getElementById('progress-modal');
             const progressTitle = document.getElementById('progress-title');
@@ -226,6 +248,9 @@
 
             // Clear the individual file upload status lines from the view.
             document.querySelectorAll('#upload-status .upload-item').forEach(item => item.remove());
+
+            // Clear the thumbnail grid for a new batch
+            document.getElementById('thumbnail-grid').innerHTML = '';
 
             progressTitle.textContent = 'Generating Thumbnails & Previews...';
             progressText.textContent = 'Starting batch processing...';
