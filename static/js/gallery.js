@@ -539,30 +539,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     const addRow = (table, label, value) => {
                         let displayValue = value;
                         // Format date strings for better readability, but ignore zero-value dates
-                        if (typeof value === 'string' && value.includes('T') && value.includes('Z') && !value.startsWith('0001-01-01')) {
+                        if (label === 'Date Taken' && typeof value === 'string' && value.includes('T') && value.includes('Z') && !value.startsWith('0001-01-01')) {
                             displayValue = new Date(value).toLocaleString();
                         }
-
                         const row = table.insertRow();
                         row.insertCell(0).innerHTML = `<strong>${label}</strong>`;
                         row.insertCell(1).textContent = displayValue;
                     };
-
                     // Build the content
                     infoModalBody.innerHTML = `<h3>${data.Filename}</h3>`;
                     const table = document.createElement('table');
-
-                    // --- Build rows, checking for valid data before adding ---
-
-                    addRow(table, 'Date Taken', data.DateTimeOriginal);
+                    addRow(table, 'Date Taken', data.DateTime);
                     addRow(table, 'Dimensions', `${data.ImageWidth} x ${data.ImageLength}`);
-                    addRow(table, 'Camera', `${data.Make} ${data.Model}`);
-                    addRow(table, 'Lens', data.LensModel);
-                    addRow(table, 'Aperture', `f/${data.FNumber}`);
-                    addRow(table, 'Exposure Time', `${data.ExposureTime}s`);
-                    addRow(table, 'ISO', data.ISOSpeedRatings);
-                    addRow(table, 'Focal Length', `${data.FocalLength}mm`);
-
                     infoModalBody.appendChild(table);
                     infoModal.style.display = "block";
                 } catch (error) {
@@ -642,12 +630,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             const data = await response.json();
 
             // Determine the best available date
-            let currentDate = new Date(data.UploadedAt);
-            if (data.DateTimeOriginal && !data.DateTimeOriginal.startsWith('0001-01-01')) {
-                currentDate = new Date(data.DateTimeOriginal);
-            } else if (data.DateTime && !data.DateTime.startsWith('0001-01-01')) {
-                currentDate = new Date(data.DateTime);
-            }
+            // DateTime is now the pre-calculated best date, so we use it directly.
+            let currentDate = new Date(data.DateTime);
 
             // Format for display
             currentDateDisplay.textContent = currentDate.toLocaleString();
