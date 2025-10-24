@@ -11,6 +11,8 @@ import (
 	"strings"
 	"path/filepath"
 	"sync"
+	"sync/atomic"
+	"runtime"
 	"os"
 	"strconv"
 	"sort"
@@ -821,34 +823,80 @@ func startProcessUploadedPhotosHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"task_id": taskID})
 }
 
-// processThumbnailsBatch processes a batch of photos to create thumbnails.
+// processUploadedPhotosBatch processes a batch of photos to create thumbnails and previews concurrently.
 func processUploadedPhotosBatch(taskID, username string, filenames []string) {
 	log.Printf("Starting batch processing (thumbnails & previews) for task %s, %d files", taskID, len(filenames))
 	totalFiles := len(filenames)
 
-	for i, filename := range filenames {
-		// Check for cancellation
-		taskProgressMap.RLock()
-		if taskProgressMap.tasks[taskID].Cancelled {
+	// Use a worker pool to process images concurrently.
+	// The number of workers is limited to the number of CPU cores to avoid overwhelming the system.
+	numWorkers := runtime.NumCPU()
+	jobs := make(chan string, totalFiles)
+	progressChan := make(chan string, totalFiles)
+	var wg sync.WaitGroup
+
+	// Start a dedicated goroutine to listen for progress updates.
+	// This ensures that updates to the shared task map are serialized and correct.
+	var processedCount int
+	go func() {
+		for filename := range progressChan {
+			processedCount++
+			taskProgressMap.RLock()
+			cancelled := taskProgressMap.tasks[taskID].Cancelled
 			taskProgressMap.RUnlock()
-			log.Printf("Task %s cancelled.", taskID)
-			return
-		}
-		taskProgressMap.RUnlock()
 
-		// Update progress before processing
-		updateTaskProgress(taskID, i+1, filename)
-
-		photo, err := getPhotoByFilename(filename)
-		if err == nil && photo.UploadedBy == username {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-			createThumbnail(originalPath, photo.UploadedBy) // Error logging is inside the function
-			createPreview(originalPath, photo.UploadedBy)   // Error logging is inside the function
-		} else {
-			log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
+			if !cancelled {
+				updateTaskProgress(taskID, processedCount, filename)
+			}
 		}
+	}()
+
+	// Start workers
+	for w := 0; w < numWorkers; w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for filename := range jobs {
+				// Check for cancellation before processing a new job.
+				// This is the primary cancellation check.
+				taskProgressMap.RLock()
+				cancelled := taskProgressMap.tasks[taskID].Cancelled
+				taskProgressMap.RUnlock()
+				if cancelled {
+					// Drain the rest of the jobs channel to allow other workers to finish quickly.
+					// This is a simple way to signal cancellation to other workers.
+					for range jobs {}
+					return
+				}
+
+				// Report progress *before* starting the heavy work.
+				progressChan <- filename
+
+				// Process the image
+				photo, err := getPhotoByFilename(filename)
+				if err == nil && photo.UploadedBy == username {
+					originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
+					createThumbnail(originalPath, photo.UploadedBy)
+					createPreview(originalPath, photo.UploadedBy)
+				} else {
+					log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
+				}
+			}
+		}()
 	}
 
+	// Add jobs to the channel
+	for _, filename := range filenames {
+		jobs <- filename
+	}
+	close(jobs)
+
+	// Wait for all workers to finish
+	wg.Wait()
+
+	// Close the progress channel once all workers are done.
+	close(progressChan)
+	
 	log.Printf("Batch processing complete for task %s", taskID)
 	updateTaskComplete(taskID, totalFiles)
 }
