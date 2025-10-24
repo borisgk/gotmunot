@@ -114,9 +114,18 @@
             uploadedFilenames.length = 0; // Clear previous uploads
             uploadButton.disabled = true;
             uploadStatus.innerHTML = '<h3>Upload Progress:</h3>';
+            const totalStartTime = performance.now();
+
             for (const file of files) {
                 await uploadFile(file); // Wait for one file to finish before starting the next
             }
+
+            const totalEndTime = performance.now();
+            const totalDuration = ((totalEndTime - totalStartTime) / 1000).toFixed(2);
+            const totalTimeElement = document.createElement('p');
+            totalTimeElement.innerHTML = `<strong>Total upload time: ${totalDuration} seconds.</strong>`;
+            uploadStatus.appendChild(totalTimeElement);
+
             uploadButton.disabled = false;
             fileInput.value = ''; // Clear the file input more reliably
 
