@@ -540,7 +540,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         let displayValue = value;
                         // Format date strings for better readability, but ignore zero-value dates
                         if (label === 'Date Taken' && typeof value === 'string' && value.includes('T') && value.includes('Z') && !value.startsWith('0001-01-01')) {
-                            displayValue = new Date(value).toLocaleString();
+                            displayValue = new Date(value).toLocaleString('en-US', {
+                                year: 'numeric', month: 'long', day: 'numeric',
+                                hour: '2-digit', minute: '2-digit',
+                                hour12: false // Use 24-hour format
+                            });
                         }
                         const row = table.insertRow();
                         row.insertCell(0).innerHTML = `<strong>${label}</strong>`;
@@ -634,7 +638,11 @@ document.addEventListener('DOMContentLoaded', (event) => {
             let currentDate = new Date(data.DateTime);
 
             // Format for display
-            currentDateDisplay.textContent = currentDate.toLocaleString();
+            currentDateDisplay.textContent = currentDate.toLocaleString('en-US', {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit',
+                hour12: false // Use 24-hour format
+            });
 
             // Format for the datetime-local input (YYYY-MM-DDTHH:MM)
             // We need to adjust for the timezone offset to pre-fill correctly.
