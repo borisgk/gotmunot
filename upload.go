@@ -16,6 +16,7 @@ import (
 	_ "image/png"  // Import for PNG decoding
 
 	"github.com/chai2010/webp"
+	"github.com/disintegration/imaging"
 )
 
 // Response struct for JSON responses
@@ -212,10 +213,29 @@ func moveAndSaveFile(tempPath, originalFilename string, photoDate time.Time, use
 	relativePath := filepath.Join(year, month, day, newFilename)
 	newFilePath := filepath.Join(targetDir, newFilename)
 
-	// Move the file from the temporary path to the new path.
-	// os.Rename is an atomic operation on most filesystems.
-	if err := os.Rename(tempPath, newFilePath); err != nil {
-		return "", "", "", fmt.Errorf("failed to move temp file to final destination: %w", err)
+	// We cannot use os.Rename because the temporary directory and the final
+	// destination may be on different devices (e.g., in a Docker container).
+	// Instead, we open the source, create the destination, and copy the content.
+
+	// Open the source file (the temporary file).
+	src, err := os.Open(tempPath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to open temp file for copying: %w", err)
+	}
+	defer src.Close()
+
+	// Create the destination file.
+	dst, err := os.Create(newFilePath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to create destination file: %w", err)
+	}
+	defer dst.Close()
+
+	// Copy the file content.
+	if _, err = io.Copy(dst, src); err != nil {
+		// If copy fails, attempt to remove the partially created destination file.
+		os.Remove(newFilePath)
+		return "", "", "", fmt.Errorf("failed to copy file to destination: %w", err)
 	}
 
 	return newFilePath, newFilename, relativePath, nil

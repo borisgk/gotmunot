@@ -70,6 +70,7 @@ func main() {
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
 	http.HandleFunc("/api/photos/batch-update-date", startBatchUpdateDateHandler)
+	http.HandleFunc("/api/photos/process-thumbnails", startProcessThumbnailsHandler)
 	http.HandleFunc("/api/photo/update-date", updatePhotoDateHandler)
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
@@ -783,6 +784,74 @@ func getRegeneratePreviewsStatusHandler(w http.ResponseWriter, r *http.Request) 
 	getRegenerateThumbnailsStatusHandler(w, r)
 }
 
+// startProcessThumbnailsHandler initiates background thumbnail generation for newly uploaded photos.
+func startProcessThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Authenticate user
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// 2. Decode JSON body
+	var payload struct {
+		Filenames []string `json:"filenames"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if len(payload.Filenames) == 0 {
+		http.Error(w, "No filenames provided for processing", http.StatusBadRequest)
+		return
+	}
+
+	// 3. Generate a unique task ID and initialize progress
+	taskID := fmt.Sprintf("process-thumbs-%d", time.Now().UnixNano())
+	taskProgressMap.Lock()
+	taskProgressMap.tasks[taskID] = &TaskProgress{Total: len(payload.Filenames)}
+	taskProgressMap.Unlock()
+
+	// 4. Start the background task
+	go processThumbnailsBatch(taskID, username, payload.Filenames)
+
+	// 5. Respond immediately with the task ID
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"task_id": taskID})
+}
+
+// processThumbnailsBatch processes a batch of photos to create thumbnails.
+func processThumbnailsBatch(taskID, username string, filenames []string) {
+	log.Printf("Starting batch thumbnail generation for task %s, %d files", taskID, len(filenames))
+	totalFiles := len(filenames)
+
+	for i, filename := range filenames {
+		// Check for cancellation
+		taskProgressMap.RLock()
+		if taskProgressMap.tasks[taskID].Cancelled {
+			taskProgressMap.RUnlock()
+			log.Printf("Task %s cancelled.", taskID)
+			return
+		}
+		taskProgressMap.RUnlock()
+
+		// Update progress before processing
+		updateTaskProgress(taskID, i+1, filename)
+
+		photo, err := getPhotoByFilename(filename)
+		if err == nil && photo.UploadedBy == username {
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
+			createThumbnail(originalPath, photo.UploadedBy) // Error logging is inside createThumbnail
+		} else {
+			log.Printf("Task %s: skipping thumbnail for %s (not found or permission denied)", taskID, filename)
+		}
+	}
+
+	log.Printf("Batch thumbnail generation complete for task %s", taskID)
+	updateTaskComplete(taskID, totalFiles)
+}
+
 // --- Task Helper Functions ---
 
 func updateTaskCancelled(taskID string) {
@@ -792,6 +861,15 @@ func updateTaskCancelled(taskID string) {
 		task.Cancelled = true
 		task.Complete = true // Mark as complete to stop polling
 		task.Error = "Task cancelled by user."
+	}
+}
+
+func updateTaskProgress(taskID string, processed int, filename string) {
+	taskProgressMap.Lock()
+	defer taskProgressMap.Unlock()
+	if task, ok := taskProgressMap.tasks[taskID]; ok {
+		task.Processed = processed
+		task.Filename = filename
 	}
 }
 

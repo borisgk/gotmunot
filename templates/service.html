@@ -17,107 +17,71 @@
     <hr>
     <h2>Thumbnail Regeneration</h2>
     <p>Regenerate all WebP thumbnails from the original images. This can take a while.</p>
-    <button id="regenerateBtn">Start Regeneration</button>
-    <div id="progressContainer" style="display: none; margin-top: 1em;">
-        <p id="progressStatus"></p>
-        <progress id="progressBar" value="0" max="100" style="width: 100%;"></progress>
-    </div>
+    <button id="regenerate-thumbs-btn">Start Regeneration</button>
     <hr>
     <h2>Preview Regeneration</h2>
     <p>Regenerate all JPEG previews from the original images. This can take a while.</p>
-    <button id="regeneratePreviewsBtn">Start Regeneration</button>
-    <div id="previewsProgressContainer" style="display: none; margin-top: 1em;">
-        <p id="previewsProgressStatus"></p>
-        <progress id="previewsProgressBar" value="0" max="100" style="width: 100%;"></progress>
+    <button id="regenerate-previews-btn">Start Regeneration</button>
+
+    <!-- The Progress Modal (re-used for all service tasks) -->
+    <div id="progress-modal" class="info-modal" style="display: none;">
+        <div class="info-modal-content">
+            <h3 id="progress-title">Processing...</h3>
+            <p id="progress-text"></p>
+            <div class="progress-bar-container">
+                <div id="progress-bar" class="progress-bar"></div>
+            </div>
+            <button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
+        </div>
     </div>
 
     <p><a href="/gallery">Back to Gallery</a> | <a href="/logout">Logout</a></p>
 
+    <script src="/static/js/task-poller.js"></script>
     <script>
-        // --- Thumbnail Regeneration ---
-        const regenerateBtn = document.getElementById('regenerateBtn');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const progressStatus = document.getElementById('progressStatus');
+        document.addEventListener('DOMContentLoaded', () => {
+            const thumbsBtn = document.getElementById('regenerate-thumbs-btn');
+            const previewsBtn = document.getElementById('regenerate-previews-btn');
 
-        let pollingInterval;
+            const progressModal = document.getElementById('progress-modal');
+            const progressTitle = document.getElementById('progress-title');
+            const progressText = document.getElementById('progress-text');
+            const progressBar = document.getElementById('progress-bar');
 
-        function pollStatus(taskId, elements) {
-            fetch(`/service/regenerate-thumbnails/status?id=${taskId}`) // Generic status endpoint works for both
-                .then(response => response.json())
-                .then(data => {
-                    if (data.error) {
-                        elements.status.textContent = `Error: ${data.error}`;
-                        clearInterval(pollingInterval);
-                        elements.button.disabled = false;
-                        return;
-                    }
+            async function startServiceTask(button, startUrl, title) {
+                if (!confirm('This process can take a long time. Are you sure you want to continue?')) {
+                    return;
+                }
 
-                    const percent = data.total > 0 ? (data.processed / data.total) * 100 : 0;
-                    elements.bar.value = percent;
-                    elements.status.textContent = `Processing (${data.processed}/${data.total}): ${data.filename}`;
+                button.disabled = true;
+                progressTitle.textContent = title;
+                progressText.textContent = 'Starting regeneration...';
+                progressBar.style.width = '0%';
+                progressModal.style.display = 'block';
 
-                    if (data.complete) {
-                        clearInterval(pollingInterval);
-                        elements.status.textContent = `Regeneration complete! Processed ${data.total} photos.`;
-                        elements.bar.value = 100;
-                        elements.button.disabled = false;
-                    }
-                })
-                .catch(err => {
-                    console.error("Polling error:", err);
-                    clearInterval(pollingInterval);
-                    elements.status.textContent = 'Error checking status.';
-                    elements.button.disabled = false;
-                });
-        }
+                try {
+                    const response = await fetch(startUrl);
+                    if (!response.ok) throw new Error('Failed to start task.');
 
-        regenerateBtn.addEventListener('click', () => {
-            if (!confirm('This process can take a long time. Are you sure you want to continue?')) {
-                return;
+                    const { task_id } = await response.json();
+                    window.pollTaskStatus(task_id, {
+                        onComplete: () => {
+                            alert('Regeneration complete!');
+                            button.disabled = false;
+                        },
+                        onCancel: () => {
+                            button.disabled = false;
+                        }
+                    });
+                } catch (error) {
+                    alert(`Error: ${error.message}`);
+                    progressModal.style.display = 'none';
+                    button.disabled = false;
+                }
             }
 
-            regenerateBtn.disabled = true;
-            progressContainer.style.display = 'block';
-            progressStatus.textContent = 'Starting regeneration...';
-            progressBar.value = 0;
-
-            fetch('/service/regenerate-thumbnails/start')
-                .then(response => response.json())
-                .then(data => {
-                    const elements = { button: regenerateBtn, container: progressContainer, bar: progressBar, status: progressStatus };
-                    if (data.task_id) {
-                        pollingInterval = setInterval(() => pollStatus(data.task_id, elements), 750);
-                    }
-                });
-        });
-
-        // --- Preview Regeneration ---
-        const regeneratePreviewsBtn = document.getElementById('regeneratePreviewsBtn');
-        const previewsProgressContainer = document.getElementById('previewsProgressContainer');
-        const previewsProgressBar = document.getElementById('previewsProgressBar');
-        const previewsProgressStatus = document.getElementById('previewsProgressStatus');
-
-        let previewsPollingInterval;
-
-        regeneratePreviewsBtn.addEventListener('click', () => {
-            if (!confirm('This process can take a long time. Are you sure you want to continue?')) {
-                return;
-            }
-
-            regeneratePreviewsBtn.disabled = true;
-            previewsProgressContainer.style.display = 'block';
-            previewsProgressStatus.textContent = 'Starting regeneration...';
-            previewsProgressBar.value = 0;
-
-            fetch('/service/regenerate-previews/start')
-                .then(response => response.json())
-                .then(data => {
-                    const elements = { button: regeneratePreviewsBtn, container: previewsProgressContainer, bar: previewsProgressBar, status: previewsProgressStatus };
-                    if (data.task_id) {
-                        previewsPollingInterval = setInterval(() => pollStatus(data.task_id, elements), 750);
-                    }
-                });
+            thumbsBtn.addEventListener('click', () => startServiceTask(thumbsBtn, '/service/regenerate-thumbnails/start', 'Regenerating Thumbnails...'));
+            previewsBtn.addEventListener('click', () => startServiceTask(previewsBtn, '/service/regenerate-previews/start', 'Regenerating Previews...'));
         });
     </script>
 </body>
