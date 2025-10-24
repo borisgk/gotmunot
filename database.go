@@ -19,47 +19,11 @@ type PhotoMetadata struct {
 	ID               int
 	Filename         string
 	Filepath         string
-	Filesize         int64
-	ContentType      string
 	UploadedBy       string
 	UploadedAt       time.Time
-	Make             string
-	Model            string
-	ImageDescription string
 	ImageWidth       int64
 	ImageLength      int64
-	XResolution      float64
-	YResolution      float64
-	ResolutionUnit   int64
-	Orientation      int64
-	Software         string
 	DateTime         time.Time
-	Artist           string
-	Copyright        string
-	ExposureTime      string
-	ExposureProgram   int64
-	FNumber           float64
-	ISOSpeedRatings   int64
-	ShutterSpeedValue string
-	ApertureValue     float64
-	ExposureBiasValue string
-	MaxApertureValue  float64
-	MeteringMode      int64
-	LightSource       int64
-	Flash             int64
-	FocalLength           float64
-	FocalLengthIn35mmFilm int64
-	LensMake              string
-	LensModel             string
-	DateTimeOriginal time.Time
-	DateTimeDigitized time.Time
-	SubSecTime        string
-	GPSLat           float64
-	GPSLon           float64
-	GPSAltitude      float64
-	GPSTimeStamp     time.Time
-	GPSSpeed         float64
-	GPSImgDirection  float64
 }
 
 // AspectRatio calculates the width/height ratio of the photo.

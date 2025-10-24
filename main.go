@@ -610,9 +610,7 @@ func cancelTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // getPhotoTime returns the most relevant time.Time for a photo.
 func getPhotoTime(p *PhotoMetadata) time.Time {
-	if !p.DateTime.IsZero() {
-		return p.DateTime
-	}
+	// DateTime is now the pre-calculated best date, so we use it directly.
 	return p.UploadedAt
 }
 

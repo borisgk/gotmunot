@@ -168,48 +168,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create a PhotoMetadata struct to hold all the data.
 	photoData := &PhotoMetadata{
-		Filename:              newFilename, // The name of the file itself
-		Filepath:              relativePath,  // The path relative to the media root
-		Filesize:              header.Size,
-		ContentType:           contentType,
-		UploadedBy:            username,
-		UploadedAt:            time.Now(),
-		DateTime:              photoDate, // Use the determined best date
-		Model:                 exifInfo.Model,
-		ImageDescription:      exifInfo.ImageDescription,
-		ImageWidth:            int64(exifInfo.ImageWidth),
-		ImageLength:           int64(exifInfo.ImageLength),
-		XResolution:           exifInfo.XResolution,
-		YResolution:           exifInfo.YResolution,
-		ResolutionUnit:        int64(exifInfo.ResolutionUnit),
-		Orientation:           int64(exifInfo.Orientation),
-		Software:              exifInfo.Software, // Keep for now, will be saved to details table
-		Artist:                exifInfo.Artist,
-		Copyright:             exifInfo.Copyright,
-		ExposureTime:           exifInfo.ExposureTime,
-		ExposureProgram:       int64(exifInfo.ExposureProgram),
-		FNumber:               exifInfo.FNumber,
-		ISOSpeedRatings:       int64(exifInfo.ISOSpeedRatings),
-		ShutterSpeedValue:     exifInfo.ShutterSpeedValue,
-		ApertureValue:         exifInfo.ApertureValue,
-		ExposureBiasValue:     exifInfo.ExposureBiasValue,
-		MaxApertureValue:      exifInfo.MaxApertureValue,
-		MeteringMode:          int64(exifInfo.MeteringMode),
-		LightSource:           int64(exifInfo.LightSource),
-		Flash:                 int64(exifInfo.Flash),
-		FocalLength:           exifInfo.FocalLength,
-		FocalLengthIn35mmFilm: int64(exifInfo.FocalLengthIn35mmFilm),
-		LensMake:              exifInfo.LensMake,
-		LensModel:             exifInfo.LensModel,
-		DateTimeOriginal:      exifInfo.DateTimeOriginal,
-		DateTimeDigitized:     exifInfo.DateTimeDigitized,
-		SubSecTime:            exifInfo.SubSecTime,
-		GPSLat:                exifInfo.GPSLatitude,
-		GPSLon:                exifInfo.GPSLongitude,
-		GPSAltitude:           exifInfo.GPSAltitude,
-		GPSTimeStamp:          exifInfo.GPSTimeStamp,
-		GPSSpeed:              exifInfo.GPSSpeed,
-		GPSImgDirection:       exifInfo.GPSImgDirection,
+		Filename:    newFilename,     // The name of the file itself
+		Filepath:    relativePath,    // The path relative to the media root
+		UploadedBy:  username,
+		UploadedAt:  time.Now(),
+		ImageWidth:  int64(exifInfo.ImageWidth),
+		ImageLength: int64(exifInfo.ImageLength),
+		DateTime:    photoDate,       // Use the determined best date
 	}
 
 	// Save metadata to the database.
