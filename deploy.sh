@@ -31,6 +31,7 @@ rsync -avz --delete \
     --exclude 'tm25' \
     --exclude 'README.md' \
     --exclude 'LICENSE' \
+    --exclude 'testdata/' \
     . "${REMOTE_DEST}/"
 
 echo ">>> File sync complete."
