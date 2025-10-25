@@ -1,0 +1,28 @@
+[Unit]
+Description=TM25 Photo Gallery Service
+After=network.target
+
+[Service]
+# User and Group under which the service will run.
+# Replace 'borisk' if you use a different user on your server.
+User=borisk
+Group=borisk
+
+# The directory where the tm25 executable and config.toml are located.
+# This should match the remote directory in your deploy script.
+WorkingDirectory=/home/borisk/tm25
+
+# The command to start the application.
+ExecStart=/home/borisk/tm25/tm25
+
+# Restart the service if it fails.
+Restart=on-failure
+RestartSec=5s
+
+# Redirect stdout and stderr to the systemd journal.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+# Start the service at boot for multi-user systems.
+WantedBy=multi-user.target

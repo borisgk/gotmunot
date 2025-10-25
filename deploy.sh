@@ -46,7 +46,9 @@ ssh "${REMOTE_USER}@${REMOTE_HOST}" "
     go build -ldflags='-s -w' -o tm25 .;
     echo '--- Build complete. Executable is at ${REMOTE_DIR}/tm25';
     # Add a command here to restart your service, for example:
-    # sudo systemctl restart tm25.service
+    sudo systemctl restart tm25.service
+    echo '--- Service restarted';
 "
+
 
 echo ">>> Deployment finished successfully!"
