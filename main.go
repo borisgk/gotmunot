@@ -11,7 +11,6 @@ import (
 	"strings"
 	"path/filepath"
 	"sync"
-	"runtime"
 	"os"
 	"strconv"
 	"sort"
@@ -854,92 +853,16 @@ func startProcessUploadedPhotosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // processUploadedPhotosBatch processes a batch of photos to create thumbnails and previews concurrently.
+// This is now a silent, background-only task for generating previews.
 func processUploadedPhotosBatch(taskID, username string, filenames []string) {
-	log.Printf("Starting batch processing (thumbnails & previews) for task %s, %d files", taskID, len(filenames))
-	totalFiles := len(filenames)
-
-	// Use a worker pool to process images concurrently.
-	// The number of workers is limited to the number of CPU cores to avoid overwhelming the system.
-	numWorkers := runtime.NumCPU()
-	jobs := make(chan string, totalFiles)
-	type progressUpdate struct {
-		Filename string
-		ThumbURL string
-	}
-	progressChan := make(chan progressUpdate, totalFiles)
-	var wg sync.WaitGroup
-
-	// Start a dedicated goroutine to listen for progress updates.
-	// This ensures that updates to the shared task map are serialized and correct.
-	var processedCount int
-	go func() {
-		for update := range progressChan {
-			processedCount++
-			taskProgressMap.RLock()
-			cancelled := taskProgressMap.tasks[taskID].Cancelled
-			taskProgressMap.RUnlock()
-
-			if !cancelled {
-				updateTaskProgress(taskID, processedCount, update.Filename, update.ThumbURL)
-			}
-		}
-	}()
-
-	// Start workers
-	for w := 0; w < numWorkers; w++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for filename := range jobs {
-				// Check for cancellation before processing a new job.
-				// This is the primary cancellation check.
-				taskProgressMap.RLock()
-				cancelled := taskProgressMap.tasks[taskID].Cancelled
-				taskProgressMap.RUnlock()
-				if cancelled {
-					// Drain the rest of the jobs channel to allow other workers to finish quickly.
-					// This is a simple way to signal cancellation to other workers.
-					for range jobs {}
-					return
-				}
-
-				// Process the image
-				var thumbURL string
-				photo, err := getPhotoByFilename(filename)
-				if err == nil && photo.UploadedBy == username {
-					originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-					if err := createThumbnail(originalPath, photo.UploadedBy); err == nil {
-						// If thumbnail is created successfully, construct its URL.
-						thumbURL = "/media/" + filepath.ToSlash(filepath.Join(photo.UploadedBy, "thumbs", photo.Filepath+".webp"))
-					}
-				} else {
-					log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
-				}
-
-				// Report progress *after* the heavy work is done, including the thumb URL.
-				progressChan <- progressUpdate{Filename: filename, ThumbURL: thumbURL}
-			}
-		}()
-	}
-
-	// Add jobs to the channel
-	for _, filename := range filenames {
-		jobs <- filename
-	}
-	close(jobs)
-
-	// Wait for all workers to finish
-	wg.Wait()
-
-	// Close the progress channel once all workers are done.
-	close(progressChan)
-	
-	// Now that thumbnails are done and the user is being redirected,
-	// start generating previews in a separate, silent background task.
+	// This task is now only for previews, which can run silently in the background.
 	go createPreviewsForBatch(username, filenames)
 
-	log.Printf("Batch processing complete for task %s", taskID)
-	updateTaskComplete(taskID, totalFiles)
+	// Since this is now a silent task, we can mark it as complete immediately
+	// from the perspective of any potential poller.
+	taskProgressMap.Lock()
+	delete(taskProgressMap.tasks, taskID)
+	taskProgressMap.Unlock()
 }
 
 // createPreviewsForBatch silently creates previews for a list of files in the background.

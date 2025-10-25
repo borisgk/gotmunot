@@ -150,6 +150,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Start thumbnail generation in the background.
+	go func(path, user string) {
+		if err := createThumbnail(path, user); err != nil {
+			log.Printf("Warning: failed to create thumbnail for %s: %v", path, err)
+		}
+	}(newFilePath, username)
+
 	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
 
 	// Create a PhotoMetadata struct to hold all the data.

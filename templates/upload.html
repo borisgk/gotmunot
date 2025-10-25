@@ -232,68 +232,25 @@
 
             // After all files are uploaded, trigger batch processing for thumbnails
             if (uploadedFilenames.length > 0) {
-                await startBatchProcessing(uploadedFilenames);
+                // Silently trigger the background preview generation.
+                // We don't wait for this to finish (no await).
+                fetch('/api/photos/process-uploaded', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ filenames: uploadedFilenames }),
+                }).catch(error => {
+                    // Log the error but don't block the user.
+                    console.error('Could not start background preview generation:', error);
+                });
+
+                // Redirect to the gallery immediately.
+                window.location.href = '/gallery';
+
             } else {
                 // If no files were successfully uploaded, just reset.
                 uploadForm.reset();
             }
         });
-
-        // This function will be called by the task poller.
-        window.addThumbnailToGrid = (thumbUrl) => {
-            const grid = document.getElementById('thumbnail-grid');
-            const img = document.createElement('img');
-            img.src = thumbUrl;
-            grid.appendChild(img);
-        };
-
-        async function startBatchProcessing(filenames) {
-            const progressModal = document.getElementById('progress-modal');
-            const progressTitle = document.getElementById('progress-title');
-            const progressText = document.getElementById('progress-text');
-            const progressBar = document.getElementById('progress-bar');
-
-            // Clear the individual file upload status lines from the view.
-            document.querySelectorAll('#upload-status .upload-item').forEach(item => item.remove());
-
-            // Clear the thumbnail grid for a new batch
-            document.getElementById('thumbnail-grid').innerHTML = '';
-
-            progressTitle.textContent = 'Generating Thumbnails & Previews...';
-            progressText.textContent = 'Starting batch processing...';
-            progressBar.style.width = '0%';
-            progressModal.style.display = 'block';
-            const batchStartTime = performance.now(); // Record batch processing start time
-            try {
-                const response = await fetch('/api/photos/process-uploaded', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filenames: filenames }),
-                });
-
-                if (!response.ok) throw new Error('Failed to start post-upload processing.');
-
-                const { task_id } = await response.json();
-                
-                // Poll for status. On completion, redirect to the gallery.
-                window.pollTaskStatus(task_id, {
-                    onComplete: () => {
-                        const batchEndTime = performance.now();
-                        const batchDuration = ((batchEndTime - batchStartTime) / 1000).toFixed(2);
-                        const finalMessage = document.createElement('p');
-                        finalMessage.innerHTML = `<strong>Total processing time: ${batchDuration} seconds.</strong><br>Redirecting to gallery...`;
-                        uploadStatus.appendChild(finalMessage);
-
-                        setTimeout(() => {
-                            window.location.href = '/gallery';
-                        }, 2000); // Wait 2 seconds before redirecting
-                    },
-                });
-            } catch (error) {
-                alert(`Could not start batch processing: ${error.message}`);
-                progressModal.style.display = 'none';
-            }
-        };
     </script>
 </body>
 </html>
