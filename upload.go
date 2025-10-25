@@ -9,14 +9,15 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"path/filepath"
 	"time"
 	"strings"
+
 
 	_ "image/jpeg" // Import for JPEG decoding
 	_ "image/png"  // Import for PNG decoding
 
-	"github.com/disintegration/imaging"
+	"github.com/davidbyttow/govips/v2/vips"
+	"path/filepath"
 )
 
 // Response struct for JSON responses
@@ -128,7 +129,7 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate thumbnail synchronously before responding.
-	if err := createThumbnail(bytes.NewReader(fileBytes), newFilePath, username); err != nil {
+	if err := createThumbnailFromBytes(fileBytes, newFilePath, username); err != nil {
 		log.Printf("Warning: failed to create thumbnail for %s: %v", newFilePath, err)
 	}
 
@@ -206,22 +207,17 @@ func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Ti
 	return newFilePath, newFilename, relativePath, nil
 }
 
-// createThumbnail generates a 500px wide JPEG thumbnail for the given image from an io.Reader.
-// The thumbnail is saved in a 'thumbs' subdirectory, mirroring the original's path.
-func createThumbnail(reader io.Reader, originalPath string, username string) error {
-	srcImage, err := imaging.Decode(reader, imaging.AutoOrientation(true))
-	if err != nil {
-		return fmt.Errorf("failed to decode image for thumbnailing '%s': %w", originalPath, err)
-	}
-
-	// Resize the image to a width of 500px, preserving the aspect ratio.
-	thumb := imaging.Resize(srcImage, 500, 0, imaging.Lanczos)
-
+// createThumbnailFromBytes generates a 500px wide JPEG thumbnail from an in-memory byte slice.
+// This is used during the initial upload process.
+func createThumbnailFromBytes(imageBytes []byte, originalPath string, username string) error {
 	// Determine the path for the thumbnail.
 	// originalPath is like /data/tmunot/<user>/originals/YYYY/MM/DD/file.jpg
-	// We want to create /data/tmunot/<user>/thumbs/YYYY/MM/DD/
+	// We want to create /data/tmunot/<user>/thumbs/YYYY/MM/DD/file.jpg
 	basePath := strings.TrimPrefix(originalPath, filepath.Join(AppConfig.PhotoUploadDir, username, "originals"))
 	baseDir := filepath.Dir(basePath)
+
+	// The reader is passed for uploads to create the thumbnail from memory.
+	// For regeneration tasks, originalPath is a file on disk. We will prefer the path.
 
 	// Construct the full directory path for the thumbnail.
 	thumbDir := filepath.Join(AppConfig.PhotoUploadDir, username, "thumbs", baseDir)
@@ -233,44 +229,89 @@ func createThumbnail(reader io.Reader, originalPath string, username string) err
 	thumbFilename := filepath.Base(originalPath)
 	thumbPath := filepath.Join(thumbDir, thumbFilename)
 
-	// Save the thumbnail image as a JPEG with 80% quality.
-	if err := imaging.Save(thumb, thumbPath, imaging.JPEGQuality(80)); err != nil {
-		return fmt.Errorf("failed to save thumbnail jpeg: %w", err)
+	image, err := vips.NewImageFromBuffer(imageBytes)
+	if err != nil {
+		return fmt.Errorf("govips: failed to create image from buffer for %s: %w", originalPath, err)
+	}
+	defer image.Close()
+
+	// `Thumbnail` is highly optimized for creating thumbnails. It auto-rotates based on EXIF.
+	if err := image.Thumbnail(500, 0, vips.InterestingNone); err != nil {
+		return fmt.Errorf("govips: failed to thumbnail image %s: %w", originalPath, err)
 	}
 
-	log.Printf("Created thumbnail at %s", thumbPath)
+	// Export to JPEG format with a quality of 80.
+	jpegParams := vips.NewJpegExportParams()
+	jpegParams.Quality = 80
+	jpegParams.StripMetadata = true
+
+
+	imageBytes, _, err = image.ExportJpeg(jpegParams)
+	if err != nil {
+		return fmt.Errorf("govips: failed to export jpeg for %s: %w", originalPath, err)
+	}
+
+	if err = os.WriteFile(thumbPath, imageBytes, 0644); err != nil {
+		return fmt.Errorf("govips: failed to write jpeg thumbnail to %s: %w", thumbPath, err)
+	}
+
+	log.Printf("Created JPEG thumbnail at %s", thumbPath)
 	return nil
 }
 
-// createPreview generates a 1920px wide JPEG preview for the given image.
-// The preview is saved in a 'previews' subdirectory, mirroring the original's path.
-func createPreview(originalPath string, username string) error {
-	// Open the original image file.
-	srcImage, err := imaging.Open(originalPath, imaging.AutoOrientation(true))
+// createThumbnail generates a 500px wide JPEG thumbnail for the given image from a file path.
+// This is used for regeneration tasks.
+func createThumbnail(originalPath string, username string) error {
+	// Read the original file
+	fileBytes, err := os.ReadFile(originalPath)
 	if err != nil {
-		return fmt.Errorf("failed to open image for preview: %w", err)
+		return fmt.Errorf("failed to read original file for thumbnailing %s: %w", originalPath, err)
 	}
+	// Delegate to the byte-based function
+	return createThumbnailFromBytes(fileBytes, originalPath, username)
+}
 
-	// Resize the image to a width of 1920px, preserving the aspect ratio.
-	preview := imaging.Resize(srcImage, 1920, 0, imaging.Lanczos)
+// createPreview generates a 1920px wide JPEG preview for the given image using vips.
+func createPreview(originalPath string, username string) error {
+	image, err := vips.NewImageFromFile(originalPath)
+	if err != nil {
+		return fmt.Errorf("govips: failed to open image for preview %s: %w", originalPath, err)
+	}
+	defer image.Close()
 
 	// Determine the path for the preview.
 	// originalPath is like /data/tmunot/<user>/originals/YYYY/MM/DD/file.jpg
 	// We want to create /data/tmunot/<user>/previews/YYYY/MM/DD/
 	basePath := strings.TrimPrefix(originalPath, filepath.Join(AppConfig.PhotoUploadDir, username, "originals"))
 	baseDir := filepath.Dir(basePath)
+
+	// Construct the full directory path for the preview.
 	previewDir := filepath.Join(AppConfig.PhotoUploadDir, username, "previews", baseDir)
 	if err := os.MkdirAll(previewDir, 0755); err != nil {
 		return fmt.Errorf("failed to create preview directory: %w", err)
 	}
 
+	// The preview will have the same filename as the original.
 	previewFilename := filepath.Base(originalPath)
 	previewPath := filepath.Join(previewDir, previewFilename)
 
-	// Save the preview image as a JPEG with 80% quality.
-	err = imaging.Save(preview, previewPath, imaging.JPEGQuality(80))
+	// `Thumbnail` is highly optimized. It auto-rotates based on EXIF.
+	if err := image.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
+		return fmt.Errorf("govips: failed to thumbnail image for preview %s: %w", originalPath, err)
+	}
+
+	// Export to JPEG format with a quality of 80.
+	jpegParams := vips.NewJpegExportParams()
+	jpegParams.Quality = 80
+	jpegParams.StripMetadata = true
+
+	imageBytes, _, err := image.ExportJpeg(jpegParams)
 	if err != nil {
-		return fmt.Errorf("failed to save preview jpeg: %w", err)
+		return fmt.Errorf("govips: failed to export jpeg preview for %s: %w", originalPath, err)
+	}
+
+	if err = os.WriteFile(previewPath, imageBytes, 0644); err != nil {
+		return fmt.Errorf("govips: failed to write jpeg preview to %s: %w", previewPath, err)
 	}
 
 	log.Printf("Created preview at %s", previewPath)

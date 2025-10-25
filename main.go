@@ -564,13 +564,8 @@ func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-			file, err := os.Open(originalPath)
-			if err != nil {
-				log.Printf("Failed to open '%s' for regeneration: %v", fname, err)
-				return
-			}
-			defer file.Close()
-			createThumbnail(file, originalPath, photo.UploadedBy)
+
+			createThumbnail(originalPath, photo.UploadedBy)
 			createPreview(originalPath, photo.UploadedBy) // createPreview still uses path
 		}(filename)
 	}
@@ -590,7 +585,7 @@ func deletePhoto(filename string) error {
 	// 2. Construct paths for all three files.
 	originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
 	previewPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "previews", photo.Filepath)
-	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "thumbs", photo.Filepath)
+	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "thumbs", photo.Filepath) // No .webp extension
 
 	// 3. Delete the files. We'll log errors but continue, to ensure we try to delete everything.
 	if err := os.Remove(originalPath); err != nil && !os.IsNotExist(err) {
@@ -599,7 +594,7 @@ func deletePhoto(filename string) error {
 	if err := os.Remove(previewPath); err != nil && !os.IsNotExist(err) {
 		log.Printf("Warning: could not delete preview file %s: %v", previewPath, err)
 	}
-	if err := os.Remove(thumbPath); err != nil && !os.IsNotExist(err) {
+	if err := os.Remove(thumbPath + ".webp"); err != nil && !os.IsNotExist(err) {
 		log.Printf("Warning: could not delete thumbnail file %s: %v", thumbPath, err)
 	}
 
@@ -708,13 +703,7 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
 			} else {
-				file, err := os.Open(originalPath)
-				if err != nil {
-					log.Printf("Warning: failed to open for thumbnail regeneration %s: %v", photo.Filename, err)
-					continue
-				}
-				defer file.Close()
-				if err := createThumbnail(file, originalPath, photo.UploadedBy); err != nil {
+				if err := createThumbnail(originalPath, photo.UploadedBy); err != nil {
 					log.Printf("Warning: failed to regenerate thumbnail for %s: %v", photo.Filename, err)
 				}
 			}

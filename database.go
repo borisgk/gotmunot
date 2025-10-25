@@ -232,11 +232,11 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 	// Old paths
 	oldOriginalPath := filepath.Join(baseUploadDir, "originals", photo.Filepath)
 	oldPreviewPath := filepath.Join(baseUploadDir, "previews", photo.Filepath)
-	oldThumbPath := filepath.Join(baseUploadDir, "thumbs", photo.Filepath+".webp")
+	oldThumbPath := filepath.Join(baseUploadDir, "thumbs", photo.Filepath)
 	// New paths
 	newOriginalPath := filepath.Join(baseUploadDir, "originals", newRelativePath)
 	newPreviewPath := filepath.Join(baseUploadDir, "previews", newRelativePath)
-	newThumbPath := filepath.Join(baseUploadDir, "thumbs", newRelativePath+".webp")
+	newThumbPath := filepath.Join(baseUploadDir, "thumbs", newRelativePath)
 
 	// --- Perform file move and DB update in a transaction ---
 	tx, err := photosDB.Begin()
