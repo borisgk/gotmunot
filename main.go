@@ -584,7 +584,7 @@ func deletePhoto(filename string) error {
 	// 2. Construct paths for all three files.
 	originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
 	previewPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "previews", photo.Filepath)
-	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "thumbs", photo.Filepath+".webp")
+	thumbPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "thumbs", photo.Filepath)
 
 	// 3. Delete the files. We'll log errors but continue, to ensure we try to delete everything.
 	if err := os.Remove(originalPath); err != nil && !os.IsNotExist(err) {

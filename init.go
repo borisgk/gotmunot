@@ -161,7 +161,7 @@ func init() {
 
 	funcMap := template.FuncMap{
 		"toThumbPath": func(username, originalPath string) string {
-			return filepath.Join(username, "thumbs", originalPath) + ".webp"
+			return filepath.Join(username, "thumbs", originalPath)
 		},
 		"toPreviewPath": func(username, originalPath string) string {
 			return filepath.Join(username, "previews", originalPath)

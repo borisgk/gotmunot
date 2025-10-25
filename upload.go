@@ -15,7 +15,6 @@ import (
 	_ "image/jpeg" // Import for JPEG decoding
 	_ "image/png"  // Import for PNG decoding
 
-	"github.com/chai2010/webp"
 	"github.com/disintegration/imaging"
 )
 
@@ -150,12 +149,10 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Start thumbnail generation in the background.
-	go func(path, user string) {
-		if err := createThumbnail(path, user); err != nil {
-			log.Printf("Warning: failed to create thumbnail for %s: %v", path, err)
-		}
-	}(newFilePath, username)
+	// Generate thumbnail synchronously before responding.
+	if err := createThumbnail(newFilePath, username); err != nil {
+		log.Printf("Warning: failed to create thumbnail for %s: %v", newFilePath, err)
+	}
 
 	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
 
@@ -258,19 +255,13 @@ func createThumbnail(originalPath string, username string) error {
 		return fmt.Errorf("failed to create thumbnail directory: %w", err)
 	}
 
-	thumbFilename := filepath.Base(originalPath) + ".webp"
+	// The thumbnail will have the same filename as the original.
+	thumbFilename := filepath.Base(originalPath)
 	thumbPath := filepath.Join(thumbDir, thumbFilename)
 
-	// Create the thumbnail file.
-	thumbFile, err := os.Create(thumbPath)
-	if err != nil {
-		return fmt.Errorf("failed to create thumbnail file: %w", err)
-	}
-	defer thumbFile.Close()
-
-	// Encode the thumbnail image as WebP with 80% quality.
-	if err := webp.Encode(thumbFile, thumb, &webp.Options{Quality: 80}); err != nil {
-		return fmt.Errorf("failed to encode thumbnail to webp: %w", err)
+	// Save the thumbnail image as a JPEG with 80% quality.
+	if err := imaging.Save(thumb, thumbPath, imaging.JPEGQuality(80)); err != nil {
+		return fmt.Errorf("failed to save thumbnail jpeg: %w", err)
 	}
 
 	log.Printf("Created thumbnail at %s", thumbPath)
