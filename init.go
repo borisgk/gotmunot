@@ -20,10 +20,11 @@ var photosDB *sql.DB // photosDB remains global as it's the connection pool
 func init() {
 	fmt.Println("Initializing TM25...")
 
-	vips.Startup(nil) // Use default vips configuration
 	// Configure govips to be less verbose. Only log errors.
-	vips.SetLogging(nil, vips.LogLevelError)
+	vips.LoggingSettings(nil, vips.LogLevelError)
+	vips.Startup(nil) // Use default vips configuration
 
+	
 	// Load application configuration
 	LoadConfig()
 

@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"time"
-	"strings"
 
 
 	_ "image/jpeg" // Import for JPEG decoding
@@ -126,20 +125,14 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Calculate all paths and the new filename.
 	newFilename, relativePath, originalPath, thumbPath, previewPath := calculateFilePaths(header.Filename, photoDate, username)
 
-	// 2. Generate thumbnail and preview bytes from the original file in memory.
-	thumbBytes, err := generateThumbnailBytes(fileBytes)
+	// 2. Generate preview, then generate thumbnail from the preview.
+	previewBytes, thumbBytes, err := generatePreviewAndThumbnailBytes(fileBytes)
 	if err != nil {
-		handleUploadError(w, "Failed to generate thumbnail", http.StatusInternalServerError, err)
+		handleUploadError(w, "Failed to generate derivatives", http.StatusInternalServerError, err)
 		return
 	}
 
-	previewBytes, err := generatePreviewBytes(fileBytes)
-	if err != nil {
-		handleUploadError(w, "Failed to generate preview", http.StatusInternalServerError, err)
-		return
-	}
-
-	// 3. Write all three files to disk.
+	// 3. Write all three files (original, thumbnail, preview) to disk.
 	if err := writeAllFiles(fileBytes, thumbBytes, previewBytes, originalPath, thumbPath, previewPath); err != nil {
 		handleUploadError(w, "Failed to write files to disk", http.StatusInternalServerError, err)
 		return
@@ -218,61 +211,64 @@ func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath,
 	return nil
 }
 
-// generateThumbnailBytes creates a 500px wide JPEG thumbnail from an in-memory byte slice.
-func generateThumbnailBytes(imageBytes []byte) ([]byte, error) {
-	image, err := vips.NewImageFromBuffer(imageBytes)
+// generatePreviewAndThumbnailBytes creates a preview from the original image,
+// and then creates a thumbnail from that preview to save processing.
+func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, thumbBytes []byte, err error) {
+	originalImage, err := vips.NewImageFromBuffer(originalImageBytes)
 	if err != nil {
-		return nil, fmt.Errorf("govips: failed to create image from buffer for thumbnail: %w", err)
+		return nil, nil, fmt.Errorf("govips: failed to create image from buffer: %w", err)
 	}
-	defer image.Close()
+	defer originalImage.Close()
 
-	// `Thumbnail` is highly optimized for creating thumbnails. It auto-rotates based on EXIF.
-	if err := image.Thumbnail(500, 0, vips.InterestingNone); err != nil {
-		return nil, fmt.Errorf("govips: failed to thumbnail image: %w", err)
+	// --- 1. Generate Preview ---
+	// Use Thumbnail which is highly optimized and auto-rotates.
+	if err = originalImage.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
+		return nil, nil, fmt.Errorf("govips: failed to generate preview: %w", err)
 	}
 
-	// Export to JPEG format with a quality of 80.
+	// Export preview to bytes
 	jpegParams := vips.NewJpegExportParams()
 	jpegParams.Quality = 80
-	jpegParams.StripMetadata = true // Corrected field name
-
-	thumbBytes, _, err := image.ExportJpeg(jpegParams)
+	jpegParams.StripMetadata = true
+	previewBytes, _, err = originalImage.ExportJpeg(jpegParams)
 	if err != nil {
-		return nil, fmt.Errorf("govips: failed to export jpeg for thumbnail: %w", err)
+		return nil, nil, fmt.Errorf("govips: failed to export preview jpeg: %w", err)
 	}
-	return thumbBytes, nil
-}
 
-// generatePreviewBytes creates a 1920px wide JPEG preview from an in-memory byte slice.
-func generatePreviewBytes(imageBytes []byte) ([]byte, error) {
-	image, err := vips.NewImageFromBuffer(imageBytes)
+	// --- 2. Generate Thumbnail from the (now resized) preview image ---
+	if err = originalImage.Thumbnail(500, 0, vips.InterestingNone); err != nil {
+		return nil, nil, fmt.Errorf("govips: failed to generate thumbnail from preview: %w", err)
+	}
+
+	// Export thumbnail to bytes
+	thumbBytes, _, err = originalImage.ExportJpeg(jpegParams)
 	if err != nil {
-		return nil, fmt.Errorf("govips: failed to create image from buffer for preview: %w", err)
-	}
-	defer image.Close()
-
-	// `Thumbnail` is highly optimized. It auto-rotates based on EXIF.
-	if err := image.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
-		return nil, fmt.Errorf("govips: failed to thumbnail image for preview: %w", err)
+		return nil, nil, fmt.Errorf("govips: failed to export thumbnail jpeg: %w", err)
 	}
 
-	// Export to JPEG format with a quality of 80.
-	jpegParams := vips.NewJpegExportParams()
-	jpegParams.Quality = 80
-	jpegParams.StripMetadata = true // Corrected field name
-
-	previewBytes, _, err := image.ExportJpeg(jpegParams)
-	if err != nil {
-		return nil, fmt.Errorf("govips: failed to export jpeg for preview: %w", err)
-	}
-	return previewBytes, nil
+	return previewBytes, thumbBytes, nil
 }
 
 // createThumbnailFromBytes generates a 500px wide JPEG thumbnail from an in-memory byte slice and writes it to disk.
-// This is used during the initial upload process.
+// This is used for regeneration tasks.
 func createThumbnailFromBytes(imageBytes []byte, originalPath string, username string) error {
 	_, _, _, thumbPath, _ := calculateFilePaths(filepath.Base(originalPath), time.Now(), username)
-	thumbBytes, err := generateThumbnailBytes(imageBytes)
+
+	// For regeneration, we only need the thumbnail.
+	image, err := vips.NewImageFromBuffer(imageBytes)
+	if err != nil {
+		return err
+	}
+	defer image.Close()
+
+	if err := image.Thumbnail(500, 0, vips.InterestingNone); err != nil {
+		return err
+	}
+
+	jpegParams := vips.NewJpegExportParams()
+	jpegParams.Quality = 80
+	jpegParams.StripMetadata = true
+	thumbBytes, _, err := image.ExportJpeg(jpegParams)
 	if err != nil {
 		return err
 	}
@@ -302,35 +298,25 @@ func createPreview(originalPath string, username string) error {
 	}
 	defer image.Close()
 
-	// Determine the path for the preview.
-	// originalPath is like /data/tmunot/<user>/originals/YYYY/MM/DD/file.jpg
-	// We want to create /data/tmunot/<user>/previews/YYYY/MM/DD/
-	basePath := strings.TrimPrefix(originalPath, filepath.Join(AppConfig.PhotoUploadDir, username, "originals"))
-	baseDir := filepath.Dir(basePath)
-
-	// Construct the full directory path for the preview.
-	previewDir := filepath.Join(AppConfig.PhotoUploadDir, username, "previews", baseDir)
-	if err := os.MkdirAll(previewDir, 0755); err != nil {
-		return fmt.Errorf("failed to create preview directory: %w", err)
-	}
-
-	// The preview will have the same filename as the original.
-	previewFilename := filepath.Base(originalPath)
-	previewPath := filepath.Join(previewDir, previewFilename)
-
 	// `Thumbnail` is highly optimized. It auto-rotates based on EXIF.
 	if err := image.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
 		return fmt.Errorf("govips: failed to thumbnail image for preview %s: %w", originalPath, err)
 	}
 
-	// Export to JPEG format with a quality of 80.
 	jpegParams := vips.NewJpegExportParams()
 	jpegParams.Quality = 80
 	jpegParams.StripMetadata = true // Corrected field name
-
 	imageBytes, _, err := image.ExportJpeg(jpegParams)
 	if err != nil {
 		return fmt.Errorf("govips: failed to export jpeg preview for %s: %w", originalPath, err)
+	}
+
+	// Determine the path for the preview.
+	_, _, _, _, previewPath := calculateFilePaths(filepath.Base(originalPath), time.Now(), username)
+
+	// Create parent directory.
+	if err := os.MkdirAll(filepath.Dir(previewPath), 0755); err != nil {
+		return fmt.Errorf("failed to create preview directory: %w", err)
 	}
 
 	if err = os.WriteFile(previewPath, imageBytes, 0644); err != nil {

@@ -84,7 +84,6 @@ func main() {
 	http.HandleFunc("/api/photo/", photoActionHandler)
 	// API for batch photo operations
 	http.HandleFunc("/api/photos/batch-update-date", startBatchUpdateDateHandler)
-	http.HandleFunc("/api/photos/process-uploaded", startProcessUploadedPhotosHandler)
 	http.HandleFunc("/api/photo/update-date", updatePhotoDateHandler)
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
@@ -819,72 +818,6 @@ func getRegeneratePreviewsStatusHandler(w http.ResponseWriter, r *http.Request) 
 	// This handler can be the same as the thumbnail status handler
 	// as the logic is identical (just looks up a task ID in the map).
 	getRegenerateThumbnailsStatusHandler(w, r)
-}
-
-// startProcessUploadedPhotosHandler initiates background processing for newly uploaded photos.
-func startProcessUploadedPhotosHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. Authenticate user
-	username, ok := isValidSession(db, r)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// 2. Decode JSON body
-	var payload struct {
-		Filenames []string `json:"filenames"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if len(payload.Filenames) == 0 {
-		http.Error(w, "No filenames provided for processing", http.StatusBadRequest)
-		return
-	}
-
-	// 3. Generate a unique task ID and initialize progress
-	taskID := fmt.Sprintf("process-upload-%d", time.Now().UnixNano())
-	taskProgressMap.Lock()
-	taskProgressMap.tasks[taskID] = &TaskProgress{Total: len(payload.Filenames)}
-	taskProgressMap.Unlock()
-
-	// 4. Start the background task
-	go processUploadedPhotosBatch(taskID, username, payload.Filenames)
-
-	// 5. Respond immediately with the task ID
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{"task_id": taskID})
-}
-
-// processUploadedPhotosBatch processes a batch of photos to create thumbnails and previews concurrently.
-// This is now a silent, background-only task for generating previews.
-func processUploadedPhotosBatch(taskID, username string, filenames []string) {
-	// This task is now only for previews, which can run silently in the background.
-	go createPreviewsForBatch(username, filenames)
-
-	// Since this is now a silent task, we can mark it as complete immediately
-	// from the perspective of any potential poller.
-	taskProgressMap.Lock()
-	delete(taskProgressMap.tasks, taskID)
-	taskProgressMap.Unlock()
-}
-
-// createPreviewsForBatch silently creates previews for a list of files in the background.
-// This function is designed to run after the primary user-facing task is complete.
-func createPreviewsForBatch(username string, filenames []string) {
-	log.Printf("Starting silent background preview generation for %d files.", len(filenames))
-	for _, filename := range filenames {
-		photo, err := getPhotoByFilename(filename)
-		if err == nil && photo.UploadedBy == username {
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-			if err := createPreview(originalPath, photo.UploadedBy); err != nil {
-				log.Printf("SILENT_ERROR: Failed to create preview for %s: %v", filename, err)
-			}
-		}
-	}
-	log.Printf("Silent background preview generation complete for %d files.", len(filenames))
 }
 
 // --- Task Helper Functions ---

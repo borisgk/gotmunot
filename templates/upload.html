@@ -200,7 +200,7 @@
             }
 
             // --- Concurrent upload with a limit ---
-            const concurrencyLimit = 5;
+            const concurrencyLimit = 2;
             const queue = [...files]; // Create a mutable copy of the files array
 
             async function worker() {
@@ -230,20 +230,8 @@
             uploadButton.disabled = false;
             fileInput.value = ''; // Clear the file input more reliably
 
-            // After all files are uploaded, trigger batch processing for thumbnails
+            // After all files are uploaded, redirect to the gallery.
             if (uploadedFilenames.length > 0) {
-                // Silently trigger the background preview generation.
-                // We don't wait for this to finish (no await).
-                fetch('/api/photos/process-uploaded', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ filenames: uploadedFilenames }),
-                }).catch(error => {
-                    // Log the error but don't block the user.
-                    console.error('Could not start background preview generation:', error);
-                });
-
-                // Redirect to the gallery immediately.
                 window.location.href = '/gallery';
 
             } else {
