@@ -912,7 +912,6 @@ func processUploadedPhotosBatch(taskID, username string, filenames []string) {
 						// If thumbnail is created successfully, construct its URL.
 						thumbURL = "/media/" + filepath.ToSlash(filepath.Join(photo.UploadedBy, "thumbs", photo.Filepath+".webp"))
 					}
-					createPreview(originalPath, photo.UploadedBy)
 				} else {
 					log.Printf("Task %s: skipping processing for %s (not found or permission denied)", taskID, filename)
 				}
@@ -935,8 +934,28 @@ func processUploadedPhotosBatch(taskID, username string, filenames []string) {
 	// Close the progress channel once all workers are done.
 	close(progressChan)
 	
+	// Now that thumbnails are done and the user is being redirected,
+	// start generating previews in a separate, silent background task.
+	go createPreviewsForBatch(username, filenames)
+
 	log.Printf("Batch processing complete for task %s", taskID)
 	updateTaskComplete(taskID, totalFiles)
+}
+
+// createPreviewsForBatch silently creates previews for a list of files in the background.
+// This function is designed to run after the primary user-facing task is complete.
+func createPreviewsForBatch(username string, filenames []string) {
+	log.Printf("Starting silent background preview generation for %d files.", len(filenames))
+	for _, filename := range filenames {
+		photo, err := getPhotoByFilename(filename)
+		if err == nil && photo.UploadedBy == username {
+			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
+			if err := createPreview(originalPath, photo.UploadedBy); err != nil {
+				log.Printf("SILENT_ERROR: Failed to create preview for %s: %v", filename, err)
+			}
+		}
+	}
+	log.Printf("Silent background preview generation complete for %d files.", len(filenames))
 }
 
 // --- Task Helper Functions ---
