@@ -2,6 +2,7 @@ package main
 
 import (
 	"image"
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -80,43 +81,23 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	// Check the file type (you can add more checks as needed)
-	contentType := header.Header.Get("Content-Type")
-	if contentType != "image/jpeg" && contentType != "image/png" {
-		log.Printf("Invalid file type for %s: %s", header.Filename, contentType)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(uploadResponse{
-			Status:  "error",
-			Message: fmt.Sprintf("Invalid file type: %s", contentType),
-		})
-		return
-	}
-
-	// --- Save to a temporary file first ---
-	// Create the temporary file within the user's dedicated upload directory.
-	// This ensures it's on the same filesystem as the final destination, allowing os.Rename.
-	userTempDir := filepath.Join(AppConfig.PhotoUploadDir, username)
-	if err := os.MkdirAll(userTempDir, 0755); err != nil {
-		handleUploadError(w, "Could not create user's temporary upload directory", http.StatusInternalServerError, err)
-		return
-	}
-
-	tempFile, err := os.CreateTemp(userTempDir, "upload-*.tmp")
+	// --- Read file into memory ---
+	// This allows us to perform multiple operations (EXIF, save, thumbnail) without re-reading from disk.
+	fileBytes, err := io.ReadAll(file)
 	if err != nil {
-		handleUploadError(w, "Could not create temporary file", http.StatusInternalServerError, err)
+		handleUploadError(w, "Could not read uploaded file into memory", http.StatusInternalServerError, err)
 		return
 	}
-	// The temporary file will be removed by os.Rename or explicitly if an error occurs before moving.
-	defer tempFile.Close()
 
-	if _, err := io.Copy(tempFile, file); err != nil {
-		handleUploadError(w, "Could not save to temporary file", http.StatusInternalServerError, err)
+	// Check the file type from the detected content
+	contentType := http.DetectContentType(fileBytes)
+	if contentType != "image/jpeg" && contentType != "image/png" {
+		handleUploadError(w, fmt.Sprintf("Invalid file type: %s", contentType), http.StatusBadRequest, nil)
 		return
 	}
 
 	// --- EXIF Parsing (from memory) ---
-	exifInfo, exifReadSuccessfully := parseExifDataFromFile(tempFile.Name())
+	exifInfo, exifReadSuccessfully := parseExifData(bytes.NewReader(fileBytes))
 
 	// Determine the date to use for the folder structure.
 	// Prioritize DateTimeOriginal, then DateTimeDigitized, then DateTime from EXIF, then fallback to the current time.
@@ -132,25 +113,22 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// If EXIF data did not contain dimensions, try to get them by decoding the image config.
 	// This is efficient as it doesn't decode the whole image.
 	if exifInfo.ImageWidth == 0 || exifInfo.ImageLength == 0 {
-		if f, err := os.Open(tempFile.Name()); err == nil {
-			defer f.Close()
-			config, _, err := image.DecodeConfig(f)
-			if err == nil {
-				exifInfo.ImageWidth = uint32(config.Width)
-				exifInfo.ImageLength = uint32(config.Height)
-			}
+		config, _, err := image.DecodeConfig(bytes.NewReader(fileBytes))
+		if err == nil {
+			exifInfo.ImageWidth = uint32(config.Width)
+			exifInfo.ImageLength = uint32(config.Height)
 		}
 	}
 
-	// Move the temporary file to its final, permanent location.
-	newFilePath, newFilename, relativePath, err := moveAndSaveFile(tempFile.Name(), header.Filename, photoDate, username)
+	// Save the original file from the in-memory bytes.
+	newFilePath, newFilename, relativePath, err := saveUploadedFile(bytes.NewReader(fileBytes), header.Filename, photoDate, username)
 	if err != nil {
 		handleUploadError(w, "Could not save file to permanent storage", http.StatusInternalServerError, err)
 		return
 	}
 
 	// Generate thumbnail synchronously before responding.
-	if err := createThumbnail(newFilePath, username); err != nil {
+	if err := createThumbnail(bytes.NewReader(fileBytes), newFilePath, username); err != nil {
 		log.Printf("Warning: failed to create thumbnail for %s: %v", newFilePath, err)
 	}
 
@@ -191,20 +169,8 @@ func handleUploadError(w http.ResponseWriter, message string, statusCode int, er
 	})
 }
 
-// parseExifDataFromFile opens a file from its path and parses EXIF data.
-func parseExifDataFromFile(filePath string) (ExifInfo, bool) {
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Printf("Could not open file %s for EXIF parsing: %v", filePath, err)
-		return ExifInfo{}, false
-	}
-	defer file.Close()
-	return parseExifData(file)
-}
-
-// moveAndSaveFile moves a file from a temporary path to its final destination
-// in the uploads directory with a unique name based on the photo's date.
-func moveAndSaveFile(tempPath, originalFilename string, photoDate time.Time, username string) (string, string, string, error) {
+// saveUploadedFile saves the uploaded file to the uploads directory with a unique name.
+func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Time, username string) (string, string, string, error) {
 	// Get date parts from the provided photoDate to create the directory structure.
 	year := photoDate.Format("2006")
 	month := photoDate.Format("01")
@@ -222,22 +188,30 @@ func moveAndSaveFile(tempPath, originalFilename string, photoDate time.Time, use
 	relativePath := filepath.Join(year, month, day, newFilename)
 	newFilePath := filepath.Join(targetDir, newFilename)
 
-	// Move the file from the temporary path to the new path.
-	// os.Rename is an atomic operation and works across directories on the same filesystem.
-	if err := os.Rename(tempPath, newFilePath); err != nil {
-		return "", "", "", fmt.Errorf("failed to move temp file to final destination: %w", err)
+	// Create the new file
+	newFile, err := os.Create(newFilePath)
+	if err != nil {
+		return "", "", "", fmt.Errorf("failed to create new file: %w", err)
+	}
+	defer newFile.Close()
+
+	// Copy the file content
+	_, err = io.Copy(newFile, file)
+	if err != nil {
+		// If copy fails, we should remove the partially created file.
+		os.Remove(newFilePath)
+		return "", "", "", fmt.Errorf("failed to copy file content: %w", err)
 	}
 
 	return newFilePath, newFilename, relativePath, nil
 }
 
-// createThumbnail generates a 500px wide WebP thumbnail for the given image.
+// createThumbnail generates a 500px wide JPEG thumbnail for the given image from an io.Reader.
 // The thumbnail is saved in a 'thumbs' subdirectory, mirroring the original's path.
-func createThumbnail(originalPath string, username string) error {
-	// Open the original image file.
-	srcImage, err := imaging.Open(originalPath, imaging.AutoOrientation(true))
+func createThumbnail(reader io.Reader, originalPath string, username string) error {
+	srcImage, err := imaging.Decode(reader, imaging.AutoOrientation(true))
 	if err != nil {
-		return fmt.Errorf("failed to open image for thumbnailing: %w", err)
+		return fmt.Errorf("failed to decode image for thumbnailing '%s': %w", originalPath, err)
 	}
 
 	// Resize the image to a width of 500px, preserving the aspect ratio.

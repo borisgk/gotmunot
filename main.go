@@ -564,8 +564,14 @@ func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
 			}
 
 			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-			createThumbnail(originalPath, photo.UploadedBy)
-			createPreview(originalPath, photo.UploadedBy)
+			file, err := os.Open(originalPath)
+			if err != nil {
+				log.Printf("Failed to open '%s' for regeneration: %v", fname, err)
+				return
+			}
+			defer file.Close()
+			createThumbnail(file, originalPath, photo.UploadedBy)
+			createPreview(originalPath, photo.UploadedBy) // createPreview still uses path
 		}(filename)
 	}
 
@@ -702,7 +708,13 @@ func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 			if _, err := os.Stat(originalPath); os.IsNotExist(err) {
 				log.Printf("Skipping missing file: %s", originalPath)
 			} else {
-				if err := createThumbnail(originalPath, photo.UploadedBy); err != nil {
+				file, err := os.Open(originalPath)
+				if err != nil {
+					log.Printf("Warning: failed to open for thumbnail regeneration %s: %v", photo.Filename, err)
+					continue
+				}
+				defer file.Close()
+				if err := createThumbnail(file, originalPath, photo.UploadedBy); err != nil {
 					log.Printf("Warning: failed to regenerate thumbnail for %s: %v", photo.Filename, err)
 				}
 			}
