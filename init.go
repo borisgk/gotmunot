@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/google/uuid"
 	_ "modernc.org/sqlite"
 )
@@ -18,6 +19,10 @@ var photosDB *sql.DB // photosDB remains global as it's the connection pool
 
 func init() {
 	fmt.Println("Initializing TM25...")
+
+	vips.Startup(nil) // Use default vips configuration
+	// Configure govips to be less verbose. Only log errors.
+	vips.SetLogging(nil, vips.LogLevelError)
 
 	// Load application configuration
 	LoadConfig()

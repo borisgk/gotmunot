@@ -14,6 +14,8 @@ import (
 	"os"
 	"strconv"
 	"sort"
+
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // TaskProgress holds the state of a long-running task.
@@ -38,6 +40,9 @@ var taskProgressMap = struct {
 var photoMetadataQueue chan *PhotoMetadata
 
 func main() {
+	// Defer vips shutdown until the application exits.
+	defer vips.Shutdown()
+
 	// Define a handler function for the root path ("/").
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		// Redirect to the content page

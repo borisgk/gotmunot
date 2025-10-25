@@ -1,11 +1,11 @@
 package main
 
 import (
-	"image"
 	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
+	"image"
 	"log"
 	"net/http"
 	"os"
@@ -121,19 +121,31 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Save the original file from the in-memory bytes.
-	newFilePath, newFilename, relativePath, err := saveUploadedFile(bytes.NewReader(fileBytes), header.Filename, photoDate, username)
+	// --- New Upload Flow ---
+
+	// 1. Calculate all paths and the new filename.
+	newFilename, relativePath, originalPath, thumbPath, previewPath := calculateFilePaths(header.Filename, photoDate, username)
+
+	// 2. Generate thumbnail and preview bytes from the original file in memory.
+	thumbBytes, err := generateThumbnailBytes(fileBytes)
 	if err != nil {
-		handleUploadError(w, "Could not save file to permanent storage", http.StatusInternalServerError, err)
+		handleUploadError(w, "Failed to generate thumbnail", http.StatusInternalServerError, err)
 		return
 	}
 
-	// Generate thumbnail synchronously before responding.
-	if err := createThumbnailFromBytes(fileBytes, newFilePath, username); err != nil {
-		log.Printf("Warning: failed to create thumbnail for %s: %v", newFilePath, err)
+	previewBytes, err := generatePreviewBytes(fileBytes)
+	if err != nil {
+		handleUploadError(w, "Failed to generate preview", http.StatusInternalServerError, err)
+		return
 	}
 
-	log.Printf("File %s uploaded as %s to %s", header.Filename, newFilename, newFilePath)
+	// 3. Write all three files to disk.
+	if err := writeAllFiles(fileBytes, thumbBytes, previewBytes, originalPath, thumbPath, previewPath); err != nil {
+		handleUploadError(w, "Failed to write files to disk", http.StatusInternalServerError, err)
+		return
+	}
+
+	log.Printf("File %s uploaded as %s", header.Filename, newFilename)
 
 	// Create a PhotoMetadata struct to hold all the data.
 	photoData := &PhotoMetadata{
@@ -170,96 +182,107 @@ func handleUploadError(w http.ResponseWriter, message string, statusCode int, er
 	})
 }
 
-// saveUploadedFile saves the uploaded file to the uploads directory with a unique name.
-func saveUploadedFile(file io.Reader, originalFilename string, photoDate time.Time, username string) (string, string, string, error) {
-	// Get date parts from the provided photoDate to create the directory structure.
+// calculateFilePaths determines the new filename and the full disk paths for the original, thumbnail, and preview files.
+func calculateFilePaths(originalFilename string, photoDate time.Time, username string) (newFilename, relativePath, originalPath, thumbPath, previewPath string) {
+	// Generate a new unique filename to prevent overwrites.
+	newFilename = fmt.Sprintf("%d-%s", time.Now().Unix(), originalFilename)
+
+	// Get date parts for the directory structure.
 	year := photoDate.Format("2006")
 	month := photoDate.Format("01")
 	day := photoDate.Format("02")
 
-	// Construct the target directory path: /data/tmunot/<username>/originals/YEAR/MONTH/DAY
-	targetDir := filepath.Join(AppConfig.PhotoUploadDir, username, "originals", year, month, day)
-	if err := os.MkdirAll(targetDir, 0755); err != nil {
-		return "", "", "", fmt.Errorf("failed to create upload directory: %w", err)
-	}
+	// The path relative to the user's media directory (e.g., "2024/05/21/1716298967-photo.jpg")
+	relativePath = filepath.Join(year, month, day, newFilename)
 
-	// Generate a new unique filename to prevent overwrites and improve security.
-	// Format: <timestamp>-<original_filename>
-	newFilename := fmt.Sprintf("%d-%s", time.Now().Unix(), originalFilename)
-	relativePath := filepath.Join(year, month, day, newFilename)
-	newFilePath := filepath.Join(targetDir, newFilename)
+	// Full absolute paths for each file type.
+	originalPath = filepath.Join(AppConfig.PhotoUploadDir, username, "originals", relativePath)
+	thumbPath = filepath.Join(AppConfig.PhotoUploadDir, username, "thumbs", relativePath)
+	previewPath = filepath.Join(AppConfig.PhotoUploadDir, username, "previews", relativePath)
 
-	// Create the new file
-	newFile, err := os.Create(newFilePath)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to create new file: %w", err)
-	}
-	defer newFile.Close()
-
-	// Copy the file content
-	_, err = io.Copy(newFile, file)
-	if err != nil {
-		// If copy fails, we should remove the partially created file.
-		os.Remove(newFilePath)
-		return "", "", "", fmt.Errorf("failed to copy file content: %w", err)
-	}
-
-	return newFilePath, newFilename, relativePath, nil
+	return
 }
 
-// createThumbnailFromBytes generates a 500px wide JPEG thumbnail from an in-memory byte slice.
-// This is used during the initial upload process.
-func createThumbnailFromBytes(imageBytes []byte, originalPath string, username string) error {
-	// Determine the path for the thumbnail.
-	// originalPath is like /data/tmunot/<user>/originals/YYYY/MM/DD/file.jpg
-	// We want to create /data/tmunot/<user>/thumbs/YYYY/MM/DD/file.jpg
-	basePath := strings.TrimPrefix(originalPath, filepath.Join(AppConfig.PhotoUploadDir, username, "originals"))
-	baseDir := filepath.Dir(basePath)
+// writeAllFiles creates the necessary directories and writes the original, thumbnail, and preview byte slices to disk.
+func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath, thumbPath, previewPath string) error {
+	// Create parent directories.
+	if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(thumbPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(previewPath), 0755); err != nil { return err }
 
-	// The reader is passed for uploads to create the thumbnail from memory.
-	// For regeneration tasks, originalPath is a file on disk. We will prefer the path.
+	// Write files.
+	if err := os.WriteFile(originalPath, originalBytes, 0644); err != nil { return err }
+	if err := os.WriteFile(thumbPath, thumbBytes, 0644); err != nil { return err }
+	if err := os.WriteFile(previewPath, previewBytes, 0644); err != nil { return err }
 
-	// Construct the full directory path for the thumbnail.
-	thumbDir := filepath.Join(AppConfig.PhotoUploadDir, username, "thumbs", baseDir)
-	if err := os.MkdirAll(thumbDir, 0755); err != nil {
-		return fmt.Errorf("failed to create thumbnail directory: %w", err)
-	}
+	return nil
+}
 
-	// The thumbnail will have the same filename as the original.
-	thumbFilename := filepath.Base(originalPath)
-	thumbPath := filepath.Join(thumbDir, thumbFilename)
-
+// generateThumbnailBytes creates a 500px wide JPEG thumbnail from an in-memory byte slice.
+func generateThumbnailBytes(imageBytes []byte) ([]byte, error) {
 	image, err := vips.NewImageFromBuffer(imageBytes)
 	if err != nil {
-		return fmt.Errorf("govips: failed to create image from buffer for %s: %w", originalPath, err)
+		return nil, fmt.Errorf("govips: failed to create image from buffer for thumbnail: %w", err)
 	}
 	defer image.Close()
 
 	// `Thumbnail` is highly optimized for creating thumbnails. It auto-rotates based on EXIF.
 	if err := image.Thumbnail(500, 0, vips.InterestingNone); err != nil {
-		return fmt.Errorf("govips: failed to thumbnail image %s: %w", originalPath, err)
+		return nil, fmt.Errorf("govips: failed to thumbnail image: %w", err)
 	}
 
 	// Export to JPEG format with a quality of 80.
 	jpegParams := vips.NewJpegExportParams()
 	jpegParams.Quality = 80
-	jpegParams.StripMetadata = true
+	jpegParams.StripMetadata = true // Corrected field name
 
-
-	imageBytes, _, err = image.ExportJpeg(jpegParams)
+	thumbBytes, _, err := image.ExportJpeg(jpegParams)
 	if err != nil {
-		return fmt.Errorf("govips: failed to export jpeg for %s: %w", originalPath, err)
+		return nil, fmt.Errorf("govips: failed to export jpeg for thumbnail: %w", err)
 	}
-
-	if err = os.WriteFile(thumbPath, imageBytes, 0644); err != nil {
-		return fmt.Errorf("govips: failed to write jpeg thumbnail to %s: %w", thumbPath, err)
-	}
-
-	log.Printf("Created JPEG thumbnail at %s", thumbPath)
-	return nil
+	return thumbBytes, nil
 }
 
-// createThumbnail generates a 500px wide JPEG thumbnail for the given image from a file path.
+// generatePreviewBytes creates a 1920px wide JPEG preview from an in-memory byte slice.
+func generatePreviewBytes(imageBytes []byte) ([]byte, error) {
+	image, err := vips.NewImageFromBuffer(imageBytes)
+	if err != nil {
+		return nil, fmt.Errorf("govips: failed to create image from buffer for preview: %w", err)
+	}
+	defer image.Close()
+
+	// `Thumbnail` is highly optimized. It auto-rotates based on EXIF.
+	if err := image.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
+		return nil, fmt.Errorf("govips: failed to thumbnail image for preview: %w", err)
+	}
+
+	// Export to JPEG format with a quality of 80.
+	jpegParams := vips.NewJpegExportParams()
+	jpegParams.Quality = 80
+	jpegParams.StripMetadata = true // Corrected field name
+
+	previewBytes, _, err := image.ExportJpeg(jpegParams)
+	if err != nil {
+		return nil, fmt.Errorf("govips: failed to export jpeg for preview: %w", err)
+	}
+	return previewBytes, nil
+}
+
+// createThumbnailFromBytes generates a 500px wide JPEG thumbnail from an in-memory byte slice and writes it to disk.
+// This is used during the initial upload process.
+func createThumbnailFromBytes(imageBytes []byte, originalPath string, username string) error {
+	_, _, _, thumbPath, _ := calculateFilePaths(filepath.Base(originalPath), time.Now(), username)
+	thumbBytes, err := generateThumbnailBytes(imageBytes)
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(thumbPath), 0755); err != nil {
+		return err
+	}
+	return os.WriteFile(thumbPath, thumbBytes, 0644)
+}
+
+// createThumbnail generates a 500px wide JPEG thumbnail for a given image file path.
 // This is used for regeneration tasks.
 func createThumbnail(originalPath string, username string) error {
 	// Read the original file
@@ -267,11 +290,11 @@ func createThumbnail(originalPath string, username string) error {
 	if err != nil {
 		return fmt.Errorf("failed to read original file for thumbnailing %s: %w", originalPath, err)
 	}
-	// Delegate to the byte-based function
+	// Delegate to the byte-based function, which now handles path calculation and writing.
 	return createThumbnailFromBytes(fileBytes, originalPath, username)
 }
 
-// createPreview generates a 1920px wide JPEG preview for the given image using vips.
+// createPreview generates a 1920px wide JPEG preview for a given image file path using vips.
 func createPreview(originalPath string, username string) error {
 	image, err := vips.NewImageFromFile(originalPath)
 	if err != nil {
@@ -303,7 +326,7 @@ func createPreview(originalPath string, username string) error {
 	// Export to JPEG format with a quality of 80.
 	jpegParams := vips.NewJpegExportParams()
 	jpegParams.Quality = 80
-	jpegParams.StripMetadata = true
+	jpegParams.StripMetadata = true // Corrected field name
 
 	imageBytes, _, err := image.ExportJpeg(jpegParams)
 	if err != nil {
