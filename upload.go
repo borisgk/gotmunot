@@ -205,8 +205,14 @@ func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath,
 
 	// Write files.
 	if err := os.WriteFile(originalPath, originalBytes, 0644); err != nil { return err }
-	if err := os.WriteFile(thumbPath, thumbBytes, 0644); err != nil { return err }
-	if err := os.WriteFile(previewPath, previewBytes, 0644); err != nil { return err }
+	if err := os.WriteFile(thumbPath, thumbBytes, 0644); err != nil {
+		return err
+	}
+	log.Printf("Thumbnail created at %s", thumbPath)
+	if err := os.WriteFile(previewPath, previewBytes, 0644); err != nil {
+		return err
+	}
+	log.Printf("Preview created at %s", previewPath)
 
 	return nil
 }
@@ -275,7 +281,12 @@ func createThumbnailFromBytes(imageBytes []byte, originalPath string, username s
 	if err := os.MkdirAll(filepath.Dir(thumbPath), 0755); err != nil {
 		return err
 	}
-	return os.WriteFile(thumbPath, thumbBytes, 0644)
+	err = os.WriteFile(thumbPath, thumbBytes, 0644)
+	if err != nil {
+		return err
+	}
+	log.Printf("Thumbnail created at %s", thumbPath)
+	return nil
 }
 
 // createThumbnail generates a 500px wide JPEG thumbnail for a given image file path.
