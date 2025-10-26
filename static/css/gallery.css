@@ -19,7 +19,8 @@ body {
 .photo-item {
     flex-grow: 1; /* Allows items to grow and fill the row */
     position: relative; /* For potential future overlays */
-    height: 250px; /* Set a consistent row height */
+    height: 250px; /* Define a consistent row height */
+    aspect-ratio: var(--aspect-ratio); /* Use the aspect ratio from the inline style */
 }
 .photo-item.selected::after {
     content: '';
