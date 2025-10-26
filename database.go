@@ -13,19 +13,25 @@ import (
 
 // PhotoMetadata struct to represent photo metadata.
 type PhotoMetadata struct {
-	ID          int
-	Filename    string
-	Filepath    string
-	UploadedBy  string
-	UploadedAt  time.Time
-	ImageWidth  int64
-	ImageLength int64
-	DateTime    time.Time
+	ID            int
+	Filename      string
+	Filepath      string
+	UploadedBy    string
+	UploadedAt    time.Time
+	ImageWidth    int64
+	ImageLength   int64
+	DateTime      time.Time
+	ThumbWidth    int
+	ThumbHeight   int
+	PreviewWidth  int
+	PreviewHeight int
 }
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
 func getPhotos(username string, year int) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time
+	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, 
+		image_width, image_length, date_time,
+		thumb_width, thumb_height, preview_width, preview_height
 		FROM photos WHERE uploaded_by = ?`
 	args := []interface{}{username}
 
@@ -62,8 +68,8 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 	var p PhotoMetadata
 	row := photosDB.QueryRow(`
         SELECT 
-            id, filename, filepath, uploaded_by, uploaded_at, 
-            image_width, image_length, date_time
+            id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time,
+			thumb_width, thumb_height, preview_width, preview_height
         FROM photos
         WHERE filename = ?
     `, filename)
@@ -103,7 +109,9 @@ func getPhotoCountsByYear(username string) (map[int]int, error) {
 
 // getAllPhotos retrieves the filepath and filename for all photos in the database.
 func getAllPhotos(username string) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time
+	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, 
+		image_width, image_length, date_time,
+		thumb_width, thumb_height, preview_width, preview_height
 		FROM photos WHERE uploaded_by = ? ORDER BY date_time`
 	return queryPhotos(query, username)
 }
@@ -137,9 +145,10 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 	stmt, err := tx.Prepare(`
 		INSERT INTO photos (
 			filename, filepath, uploaded_by, uploaded_at, 
-			image_width, image_length, date_time
+			image_width, image_length, date_time,
+			thumb_width, thumb_height, preview_width, preview_height
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare statement within transaction: %w", err)
 	}
@@ -148,6 +157,7 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 	result, err := stmt.Exec(
 		p.Filename, p.Filepath, p.UploadedBy, p.UploadedAt,
 		p.ImageWidth, p.ImageLength, p.DateTime,
+		p.ThumbWidth, p.ThumbHeight, p.PreviewWidth, p.PreviewHeight,
 	)
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute insert statement: %w", err)
@@ -262,11 +272,13 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata) error {
 	// Use sql.Null types for scanning to handle potential NULL values from the database.
 	var imageWidth, imageLength sql.NullInt64
+	var thumbWidth, thumbHeight, previewWidth, previewHeight sql.NullInt64
 	var dateTime sql.NullTime
 
 	err := scanner.Scan(
 		&p.ID, &p.Filename, &p.Filepath, &p.UploadedBy, &p.UploadedAt,
-		&imageWidth, &imageLength, &dateTime,
+		&imageWidth, &imageLength, &dateTime, &thumbWidth, &thumbHeight,
+		&previewWidth, &previewHeight,
 	)
 	if err != nil {
 		return err
@@ -276,6 +288,10 @@ func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata
 	p.ImageWidth = imageWidth.Int64
 	p.ImageLength = imageLength.Int64
 	p.DateTime = dateTime.Time
+	p.ThumbWidth = int(thumbWidth.Int64)
+	p.ThumbHeight = int(thumbHeight.Int64)
+	p.PreviewWidth = int(previewWidth.Int64)
+	p.PreviewHeight = int(previewHeight.Int64)
 
 	return nil
 }

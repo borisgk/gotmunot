@@ -144,11 +144,11 @@ func main() {
 func startMetadataSaveWorker() {
 	log.Println("Starting metadata save worker...")
 	for photoData := range photoMetadataQueue {
-		if _, err := savePhotoMetadata(photoData); err != nil {
-			// This error happens in the background, so we just log it.
+		photoID, err := savePhotoMetadata(photoData)
+		if err != nil {
 			log.Printf("BACKGROUND_ERROR: Failed to save metadata for %s: %v", photoData.Filename, err)
 		} else {
-			log.Printf("Metadata for %s saved successfully from queue.", photoData.Filename)
+			log.Printf("Metadata for %s saved successfully from queue with ID %d.", photoData.Filename, photoID)
 		}
 	}
 }

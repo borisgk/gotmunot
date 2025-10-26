@@ -4,19 +4,19 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"image"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-
 	_ "image/jpeg" // Import for JPEG decoding
 	_ "image/png"  // Import for PNG decoding
 
-	"github.com/davidbyttow/govips/v2/vips"
 	"path/filepath"
+
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // Response struct for JSON responses
@@ -26,6 +26,7 @@ type uploadResponse struct {
 	Filename string `json:"filename,omitempty"`
 	ExifRead bool   `json:"exifRead"`
 }
+
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// Check if the method is POST
 	if r.Method != http.MethodPost {
@@ -125,13 +126,20 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Calculate all paths and the new filename.
 	newFilename, relativePath, originalPath, thumbPath, previewPath := calculateFilePaths(header.Filename, photoDate, username)
 
-	// 2. Generate preview, then generate thumbnail from the preview.
-	previewBytes, thumbBytes, err := generatePreviewAndThumbnailBytes(fileBytes)
+	// 2. Generate preview and thumbnail bytes, and get their dimensions.
+	previewBytes, thumbBytes, previewWidth, previewHeight, thumbWidth, thumbHeight, err := generatePreviewAndThumbnailBytes(fileBytes)
 	if err != nil {
 		handleUploadError(w, "Failed to generate derivatives", http.StatusInternalServerError, err)
 		return
 	}
 
+	// Store dimensions for saving to the DB
+	photoData := &PhotoMetadata{
+		ThumbWidth:    thumbWidth,
+		ThumbHeight:   thumbHeight,
+		PreviewWidth:  previewWidth,
+		PreviewHeight: previewHeight,
+	}
 	// 3. Write all three files (original, thumbnail, preview) to disk.
 	if err := writeAllFiles(fileBytes, thumbBytes, previewBytes, originalPath, thumbPath, previewPath); err != nil {
 		handleUploadError(w, "Failed to write files to disk", http.StatusInternalServerError, err)
@@ -141,15 +149,13 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 	log.Printf("File %s uploaded as %s", header.Filename, newFilename)
 
 	// Create a PhotoMetadata struct to hold all the data.
-	photoData := &PhotoMetadata{
-		Filename:    newFilename,     // The name of the file itself
-		Filepath:    relativePath,    // The path relative to the media root
-		UploadedBy:  username,
-		UploadedAt:  time.Now(),
-		ImageWidth:  int64(exifInfo.ImageWidth),
-		ImageLength: int64(exifInfo.ImageLength),
-		DateTime:    photoDate,       // Use the determined best date
-	}
+	photoData.Filename = newFilename
+	photoData.Filepath = relativePath
+	photoData.UploadedBy = username
+	photoData.UploadedAt = time.Now()
+	photoData.ImageWidth = int64(exifInfo.ImageWidth)
+	photoData.ImageLength = int64(exifInfo.ImageLength)
+	photoData.DateTime = photoDate
 
 	// Send metadata to the background worker queue to be saved asynchronously.
 	// This is non-blocking and prevents DB contention during mass uploads.
@@ -199,12 +205,20 @@ func calculateFilePaths(originalFilename string, photoDate time.Time, username s
 // writeAllFiles creates the necessary directories and writes the original, thumbnail, and preview byte slices to disk.
 func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath, thumbPath, previewPath string) error {
 	// Create parent directories.
-	if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil { return err }
-	if err := os.MkdirAll(filepath.Dir(thumbPath), 0755); err != nil { return err }
-	if err := os.MkdirAll(filepath.Dir(previewPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(originalPath), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(thumbPath), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(previewPath), 0755); err != nil {
+		return err
+	}
 
 	// Write files.
-	if err := os.WriteFile(originalPath, originalBytes, 0644); err != nil { return err }
+	if err := os.WriteFile(originalPath, originalBytes, 0644); err != nil {
+		return err
+	}
 	if err := os.WriteFile(thumbPath, thumbBytes, 0644); err != nil {
 		return err
 	}
@@ -219,18 +233,20 @@ func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath,
 
 // generatePreviewAndThumbnailBytes creates a preview from the original image,
 // and then creates a thumbnail from that preview to save processing.
-func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, thumbBytes []byte, err error) {
+func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, thumbBytes []byte, previewWidth, previewHeight, thumbWidth, thumbHeight int, err error) {
 	originalImage, err := vips.NewImageFromBuffer(originalImageBytes)
 	if err != nil {
-		return nil, nil, fmt.Errorf("govips: failed to create image from buffer: %w", err)
+		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to create image from buffer: %w", err)
 	}
 	defer originalImage.Close()
 
 	// --- 1. Generate Preview ---
 	// Use Thumbnail which is highly optimized and auto-rotates.
 	if err = originalImage.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
-		return nil, nil, fmt.Errorf("govips: failed to generate preview: %w", err)
+		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to generate preview: %w", err)
 	}
+	previewWidth = originalImage.Width()
+	previewHeight = originalImage.Height()
 
 	// Export preview to bytes
 	jpegParams := vips.NewJpegExportParams()
@@ -238,21 +254,23 @@ func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, 
 	jpegParams.StripMetadata = true
 	previewBytes, _, err = originalImage.ExportJpeg(jpegParams)
 	if err != nil {
-		return nil, nil, fmt.Errorf("govips: failed to export preview jpeg: %w", err)
+		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to export preview jpeg: %w", err)
 	}
 
 	// --- 2. Generate Thumbnail from the (now resized) preview image ---
 	if err = originalImage.Thumbnail(500, 0, vips.InterestingNone); err != nil {
-		return nil, nil, fmt.Errorf("govips: failed to generate thumbnail from preview: %w", err)
+		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to generate thumbnail from preview: %w", err)
 	}
+	thumbWidth = originalImage.Width()
+	thumbHeight = originalImage.Height()
 
 	// Export thumbnail to bytes
 	thumbBytes, _, err = originalImage.ExportJpeg(jpegParams)
 	if err != nil {
-		return nil, nil, fmt.Errorf("govips: failed to export thumbnail jpeg: %w", err)
+		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to export thumbnail jpeg: %w", err)
 	}
 
-	return previewBytes, thumbBytes, nil
+	return
 }
 
 // createThumbnailFromBytes generates a 500px wide JPEG thumbnail from an in-memory byte slice and writes it to disk.

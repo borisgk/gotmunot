@@ -24,7 +24,6 @@ func init() {
 	vips.LoggingSettings(nil, vips.LogLevelError)
 	vips.Startup(nil) // Use default vips configuration
 
-	
 	// Load application configuration
 	LoadConfig()
 
@@ -127,6 +126,10 @@ func init() {
 			image_width INTEGER,
 			image_length INTEGER,
 			date_time DATETIME
+			thumb_width INTEGER,
+			thumb_height INTEGER,
+			preview_width INTEGER,
+			preview_height INTEGER
 		)
 	`)
 	if err != nil {
