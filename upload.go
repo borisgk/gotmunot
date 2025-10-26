@@ -46,11 +46,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Maximum upload size of 20MB per file
-	r.Body = http.MaxBytesReader(w, r.Body, 20*1024*1024)
+	// Maximum upload size of 50MB per file
+	r.Body = http.MaxBytesReader(w, r.Body, 50*1024*1024)
 
 	// Parse the multipart form, max memory of 20MB. Increased to handle larger single files if needed.
-	if err := r.ParseMultipartForm(100 * 1024 * 1024); err != nil {
+	if err := r.ParseMultipartForm(50 * 1024 * 1024); err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(uploadResponse{
