@@ -3,30 +3,30 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
-	"encoding/json"
 	"net/http"
-	"time"
-	"strings"
-	"path/filepath"
-	"sync"
 	"os"
-	"strconv"
+	"path/filepath"
 	"sort"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
 // TaskProgress holds the state of a long-running task.
 type TaskProgress struct {
-	Processed int    `json:"processed,omitempty"`
-	Total     int    `json:"total,omitempty"`
-	Filename  string `json:"filename,omitempty"`
-	Complete  bool   `json:"complete"`
-	Error     string `json:"error,omitempty"`
-	Cancelled bool   `json:"cancelled,omitempty"`
-	DownloadURL string `json:"download_url,omitempty"`
+	Processed           int      `json:"processed,omitempty"`
+	Total               int      `json:"total,omitempty"`
+	Filename            string   `json:"filename,omitempty"`
+	Complete            bool     `json:"complete"`
+	Error               string   `json:"error,omitempty"`
+	Cancelled           bool     `json:"cancelled,omitempty"`
+	DownloadURL         string   `json:"download_url,omitempty"`
 	GeneratedThumbnails []string `json:"generated_thumbnails,omitempty"`
 }
 
@@ -89,7 +89,7 @@ func main() {
 	http.HandleFunc("/api/login", apiLoginHandler)
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
 	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
-	
+
 	// API for downloading zipped previews
 	http.HandleFunc("/api/photos/download-previews", downloadPreviewsHandler)
 	// API for async downloads
@@ -100,7 +100,6 @@ func main() {
 	// Generic Task API
 	http.HandleFunc("/api/tasks/status", getTaskStatusHandler)
 	http.HandleFunc("/api/tasks/cancel", cancelTaskHandler)
-
 
 	// Serve static files (CSS, JS, etc.)
 	http.Handle("/static/css/", http.StripPrefix("/static/css/", http.FileServer(http.Dir("static/css"))))
@@ -250,23 +249,23 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create a struct to hold all the data for the template
 	data := struct {
-		Username    string
-		DayGroups   []DayGroup
-		TotalPhotos int
+		Username       string
+		DayGroups      []DayGroup
+		TotalPhotos    int
 		AllPhotosCount int
-		ShowPreview string
-		FilterYear  int
-		Years       []int
-		PhotoCounts map[int]int
+		ShowPreview    string
+		FilterYear     int
+		Years          []int
+		PhotoCounts    map[int]int
 	}{
-		Username:    username,
-		DayGroups:   dayGroups,
+		Username:       username,
+		DayGroups:      dayGroups,
 		AllPhotosCount: allPhotosCount,
-		ShowPreview: showPreview,
-		TotalPhotos: totalPhotos,
-		FilterYear:  year,
-		Years:       years,
-		PhotoCounts: photoCounts,
+		ShowPreview:    showPreview,
+		TotalPhotos:    totalPhotos,
+		FilterYear:     year,
+		Years:          years,
+		PhotoCounts:    photoCounts,
 	}
 
 	// Execute the "gallery.html" template and pass the data.
@@ -345,7 +344,7 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodDelete:
-		handleDeletePhoto(w, r, filename)
+		handleDeletePhoto(w, filename)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
@@ -472,7 +471,7 @@ func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
-func handleDeletePhoto(w http.ResponseWriter, r *http.Request, filename string) {
+func handleDeletePhoto(w http.ResponseWriter, filename string) {
 	// 1. Get photo metadata from DB to find its filepath.
 	err := deletePhoto(filename)
 	if err != nil {
@@ -830,18 +829,6 @@ func updateTaskCancelled(taskID string) {
 		task.Cancelled = true
 		task.Complete = true // Mark as complete to stop polling
 		task.Error = "Task cancelled by user."
-	}
-}
-
-func updateTaskProgress(taskID string, processed int, filename string, thumbURL string) {
-	taskProgressMap.Lock()
-	defer taskProgressMap.Unlock()
-	if task, ok := taskProgressMap.tasks[taskID]; ok {
-		task.Processed = processed
-		task.Filename = filename
-		if thumbURL != "" {
-			task.GeneratedThumbnails = append(task.GeneratedThumbnails, thumbURL)
-		}
 	}
 }
 

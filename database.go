@@ -1,28 +1,27 @@
 package main
 
 import (
-	"errors"
 	"database/sql"
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
-	"fmt"
 
 	_ "modernc.org/sqlite"
 )
 
 // PhotoMetadata struct to represent photo metadata.
 type PhotoMetadata struct {
-	ID               int
-	Filename         string
-	Filepath         string
-	UploadedBy       string
-	UploadedAt       time.Time
-	ImageWidth       int64
-	ImageLength      int64
-	DateTime         time.Time
+	ID          int
+	Filename    string
+	Filepath    string
+	UploadedBy  string
+	UploadedAt  time.Time
+	ImageWidth  int64
+	ImageLength int64
+	DateTime    time.Time
 }
-
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
 func getPhotos(username string, year int) ([]PhotoMetadata, error) {
@@ -74,33 +73,6 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 	}
 
 	return p, nil
-}
-
-// getDistinctYears retrieves a sorted list of distinct years for a user's photos.
-func getDistinctYears(username string) ([]int, error) {
-	// Use COALESCE to find the best available date for each photo, then extract the year.
-	// The order is: EXIF original date, EXIF modification date, then upload date.
-	rows, err := photosDB.Query(`
-		SELECT DISTINCT CAST(SUBSTR(date_time, 1, 4) AS INTEGER) as year
-		FROM photos
-		WHERE uploaded_by = ? 
-		AND year IS NOT NULL
-		ORDER BY year ASC
-	`, username)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var years []int
-	for rows.Next() {
-		var year int
-		if err := rows.Scan(&year); err != nil {
-			return nil, err
-		}
-		years = append(years, year)
-	}
-	return years, rows.Err()
 }
 
 // getPhotoCountsByYear retrieves a map of year to photo count for a user.
@@ -258,14 +230,26 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 
 	// 2. Move the files on the filesystem.
 	// Create the destination directories first.
-	if err := os.MkdirAll(filepath.Dir(newOriginalPath), 0755); err != nil { return err }
-	if err := os.MkdirAll(filepath.Dir(newPreviewPath), 0755); err != nil { return err }
-	if err := os.MkdirAll(filepath.Dir(newThumbPath), 0755); err != nil { return err }
+	if err := os.MkdirAll(filepath.Dir(newOriginalPath), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(newPreviewPath), 0755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(newThumbPath), 0755); err != nil {
+		return err
+	}
 
 	// Rename/move the files.
-	if err := os.Rename(oldOriginalPath, newOriginalPath); err != nil { return err }
-	if err := os.Rename(oldPreviewPath, newPreviewPath); err != nil { return err }
-	if err := os.Rename(oldThumbPath, newThumbPath); err != nil { return err }
+	if err := os.Rename(oldOriginalPath, newOriginalPath); err != nil {
+		return err
+	}
+	if err := os.Rename(oldPreviewPath, newPreviewPath); err != nil {
+		return err
+	}
+	if err := os.Rename(oldThumbPath, newThumbPath); err != nil {
+		return err
+	}
 
 	// TODO: Optionally, clean up old empty directories. This is a non-trivial task
 	// and can be skipped for now.
