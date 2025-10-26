@@ -125,7 +125,7 @@ func init() {
 			uploaded_at DATETIME,
 			image_width INTEGER,
 			image_length INTEGER,
-			date_time DATETIME
+			date_time DATETIME,
 			thumb_width INTEGER,
 			thumb_height INTEGER,
 			preview_width INTEGER,
