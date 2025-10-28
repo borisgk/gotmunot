@@ -25,22 +25,30 @@ func createSession(db *sql.DB, token, username string) error {
 }
 
 // getSession retrieves a session from the database
-func getSession(db *sql.DB, token string) (string, error) {
+func getSession(db *sql.DB, token string) (string, time.Time, error) {
 	var username string
 	var expiry time.Time
 	err := db.QueryRow("SELECT username, expiry FROM sessions WHERE token = ?", token).Scan(&username, &expiry)
 	if err != nil {
 		//if the session does not exist, or if an error occurs
-		return "", err
+		return "", time.Time{}, err
 	}
 
 	if time.Now().After(expiry) {
 		//if the session is expired
-		deleteSession(db, token)
-		return "", fmt.Errorf("session expired")
+		return "", time.Time{}, fmt.Errorf("session expired")
 	}
+	return username, expiry, nil
+}
 
-	return username, nil
+// extendSession extends a session's duration
+func extendSession(db *sql.DB, token string) error {
+	newExpiry := time.Now().Add(sessionDuration)
+	_, err := db.Exec("UPDATE sessions SET expiry = ? WHERE token = ?", newExpiry, token)
+	if err != nil {
+		log.Printf("Error extending session: %v", err)
+	}
+	return err
 }
 
 // deleteSession deletes a session from the database
@@ -59,9 +67,15 @@ func isValidSession(db *sql.DB, r *http.Request) (string, bool) {
 	}
 
 	sessionToken := cookie.Value
-	username, err := getSession(db, sessionToken)
+	username, expiry, err := getSession(db, sessionToken)
 	if err != nil {
 		return "", false
+	}
+
+	// To avoid database contention, only extend the session if it's close to expiring.
+	// For example, if it expires in the next hour.
+	if time.Until(expiry) < 1*time.Hour {
+		go extendSession(db, sessionToken)
 	}
 
 	return username, true
