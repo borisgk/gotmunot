@@ -569,8 +569,7 @@ func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
 
 			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
 
-			createThumbnail(originalPath, photo.UploadedBy)
-			createPreview(originalPath, photo.UploadedBy) // createPreview still uses path
+			regenerateDerivatives(originalPath, photo.UploadedBy)
 		}(filename)
 	}
 

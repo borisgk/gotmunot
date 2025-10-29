@@ -319,6 +319,36 @@ func createThumbnail(originalPath string, username string) error {
 	return createThumbnailFromBytes(fileBytes, originalPath, username)
 }
 
+// regenerateDerivatives reads an image file once and regenerates both its preview and thumbnail.
+func regenerateDerivatives(originalPath string, username string) {
+	// Read the original file into memory once.
+	fileBytes, err := os.ReadFile(originalPath)
+	if err != nil {
+		log.Printf("Failed to read original file for regeneration %s: %v", originalPath, err)
+		return
+	}
+
+	// Generate both preview and thumbnail from the in-memory bytes.
+	previewBytes, thumbBytes, _, _, _, _, err := generatePreviewAndThumbnailBytes(fileBytes)
+	if err != nil {
+		log.Printf("Failed to regenerate derivatives for %s: %v", originalPath, err)
+		return
+	}
+
+	// Calculate the destination paths.
+	// Note: The date part of the path will be based on the current time, which might differ
+	// from the original. This is consistent with the existing createThumbnail/createPreview logic.
+	// For a more advanced implementation, we could parse the date from the original path.
+	_, _, _, thumbPath, previewPath := calculateFilePaths(filepath.Base(originalPath), time.Now(), username)
+
+	// Write both files.
+	if err := writeAllFiles(nil, thumbBytes, previewBytes, "", thumbPath, previewPath); err != nil {
+		log.Printf("Failed to write regenerated files for %s: %v", originalPath, err)
+	} else {
+		log.Printf("Successfully regenerated thumbnail and preview for %s", originalPath)
+	}
+}
+
 // createPreview generates a 1920px wide JPEG preview for a given image file path using vips.
 func createPreview(originalPath string, username string) error {
 	image, err := vips.NewImageFromFile(originalPath)
