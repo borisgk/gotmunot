@@ -107,15 +107,6 @@ func getPhotoCountsByYear(username string) (map[int]int, error) {
 	return counts, rows.Err()
 }
 
-// getAllPhotos retrieves the filepath and filename for all photos in the database.
-func getAllPhotos(username string) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, 
-		image_width, image_length, date_time,
-		thumb_width, thumb_height, preview_width, preview_height
-		FROM photos WHERE uploaded_by = ? ORDER BY date_time`
-	return queryPhotos(query, username)
-}
-
 // queryPhotos is a helper function to run a query and scan the results into a slice of PhotoMetadata.
 func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
 	rows, err := photosDB.Query(query, args...)

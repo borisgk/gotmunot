@@ -200,37 +200,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
 
-    document.getElementById('regenerate-selected-btn').addEventListener('click', function(event) {
-        event.preventDefault(); // Prevent link navigation
-        document.getElementById('selection-dropdown').classList.remove('show');
-
-        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
-        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
-
-        if (filenames.length === 0) {
-            alert('No photos selected for regeneration.');
-            return;
-        }
-
-        if (confirm(`Start regeneration for ${filenames.length} selected photo(s)? This will happen in the background.`)) {
-            fetch('/api/photos/regenerate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filenames: filenames }),
-            })
-            .then(response => {
-                if (response.ok) {
-                    alert(`Regeneration started for ${filenames.length} photo(s).`);
-                } else {
-                    alert(`Error starting regeneration: ${response.statusText}`);
-                }
-            })
-            .catch(error => alert('A network error occurred.'));
-        }
-    });
-
     document.getElementById('delete-selected-btn').addEventListener('click', function(event) {
         event.preventDefault(); // Prevent link navigation
         document.getElementById('selection-dropdown').classList.remove('show');

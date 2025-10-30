@@ -69,14 +69,7 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	// Handler for the upload page
 	http.HandleFunc("/upload-page", uploadPageHandler)
-	// Handlers for polling-based thumbnail regeneration
-	http.HandleFunc("/service/regenerate-thumbnails/start", startRegenerateThumbnailsHandler)
-	// Handler for photo info
 	http.HandleFunc("/photo/info/", photoInfoHandler)
-	http.HandleFunc("/service/regenerate-thumbnails/status", getRegenerateThumbnailsStatusHandler)
-	// Handlers for polling-based preview regeneration
-	http.HandleFunc("/service/regenerate-previews/start", startRegeneratePreviewsHandler)
-	http.HandleFunc("/service/regenerate-previews/status", getRegeneratePreviewsStatusHandler)
 
 	// API for single photo operations (e.g., DELETE)
 	http.HandleFunc("/api/photo/", photoActionHandler)
@@ -86,7 +79,6 @@ func main() {
 	// API for login
 	http.HandleFunc("/api/login", apiLoginHandler)
 	http.HandleFunc("/api/photos/delete", batchDeletePhotosHandler)
-	http.HandleFunc("/api/photos/regenerate", batchRegenerateHandler)
 
 	// API for downloading zipped previews
 	http.HandleFunc("/api/photos/download-previews", downloadPreviewsHandler)
@@ -525,54 +517,6 @@ func batchDeletePhotosHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent) // All successful
-}
-
-func batchRegenerateHandler(w http.ResponseWriter, r *http.Request) {
-	// 1. Authenticate user
-	username, ok := isValidSession(db, r)
-	if !ok {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	// 2. Ensure method is POST
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// 3. Decode JSON body
-	var payload struct {
-		Filenames []string `json:"filenames"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	// 4. Iterate and start regeneration in goroutines
-	for _, filename := range payload.Filenames {
-		go func(fname string) {
-			photo, err := getPhotoByFilename(fname)
-			if err != nil {
-				log.Printf("Failed to find photo '%s' for regeneration: %v", fname, err)
-				return
-			}
-
-			// Ensure the user owns this photo before regenerating
-			if photo.UploadedBy != username {
-				log.Printf("Security alert: User '%s' attempted to regenerate photo '%s' owned by '%s'", username, fname, photo.UploadedBy)
-				return
-			}
-
-			originalPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "originals", photo.Filepath)
-
-			regenerateDerivatives(originalPath, photo.UploadedBy)
-		}(filename)
-	}
-
-	// 5. Respond immediately
-	w.WriteHeader(http.StatusAccepted) // 202 Accepted is a good response for starting a background task.
 }
 
 // deletePhoto contains the core logic to delete a single photo and its files.
