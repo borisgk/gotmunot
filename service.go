@@ -10,20 +10,6 @@ import (
 	"time"
 )
 
-func servicePageHandler(w http.ResponseWriter, r *http.Request) {
-	username, ok := isValidSession(db, r)
-	if !ok {
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
-		return
-	}
-
-	// Execute the "service.html" template and pass the username.
-	if err := tmpl.ExecuteTemplate(w, "service.html", struct{ Username string }{username}); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-}
-
 func startRegenerateThumbnailsHandler(w http.ResponseWriter, r *http.Request) {
 	// Ensure user is authenticated
 	username, ok := isValidSession(db, r)

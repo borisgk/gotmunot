@@ -69,8 +69,6 @@ func main() {
 	http.HandleFunc("/upload", uploadHandler)
 	// Handler for the upload page
 	http.HandleFunc("/upload-page", uploadPageHandler)
-	// Handler for the service page
-	http.HandleFunc("/service", servicePageHandler)
 	// Handlers for polling-based thumbnail regeneration
 	http.HandleFunc("/service/regenerate-thumbnails/start", startRegenerateThumbnailsHandler)
 	// Handler for photo info

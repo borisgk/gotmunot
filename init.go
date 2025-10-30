@@ -177,7 +177,7 @@ func init() {
 		},
 	}
 	// Parse the templates
-	tmpl, err = template.New("").Funcs(funcMap).ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html", "templates/service.html")
+	tmpl, err = template.New("").Funcs(funcMap).ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html")
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}
