@@ -17,6 +17,13 @@
         .upload-item {
             margin-bottom: 0.5em;
         }
+        .upload-item-inner {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px;
+            border-bottom: 1px solid #eee;
+        }
         .upload-item-label {
             display: block;
             margin-bottom: 4px;
@@ -27,6 +34,14 @@
             font-size: 0.9em;
             color: #555;
             border-bottom: 1px solid #eee;
+        }
+        .upload-item-thumb {
+            width: 40px;
+            height: 40px;
+            object-fit: cover;
+            border-radius: 4px;
+            background-color: #f0f0f0;
+            flex-shrink: 0;
         }
         .progress-bar-container {
             width: 100%;
@@ -71,6 +86,7 @@
                 <label for="photo">Select files:</label>
                 <input type="file" id="photo" name="photo" multiple>
                 <button type="submit" id="uploadButton">Upload</button>
+                <button type="button" id="galleryButton" style="display: none;">Go to Gallery</button>
             </div>
         </form>
 
@@ -96,6 +112,7 @@
         const fileInput = document.getElementById('photo');
         const uploadButton = document.getElementById('uploadButton');
         const uploadStatus = document.getElementById('upload-status');
+        const galleryButton = document.getElementById('galleryButton');
         const uploadedFilenames = []; // To store filenames for batch processing
 
         function uploadFile(file, itemContainer, onCompleteCallback) {
@@ -103,24 +120,13 @@
                 const formData = new FormData();
                 formData.append('photo', file);
 
+                // Get the elements from the pre-populated container
+                const itemLabel = itemContainer.querySelector('.upload-item-label');
+                const progressBar = itemContainer.querySelector('.progress-bar');
+
                 const xhr = new XMLHttpRequest();
 
-                // The itemContainer is the placeholder div. We now populate it with the progress bar.
-                itemContainer.innerHTML = ''; // Clear the placeholder text
-                itemContainer.className = 'upload-item';
-
-                const itemLabel = document.createElement('div');
-                itemLabel.className = 'upload-item-label';
                 itemLabel.textContent = `Uploading ${file.name}...`;
-                
-                const progressContainer = document.createElement('div');
-                progressContainer.className = 'progress-bar-container';
-                const progressBar = document.createElement('div');
-                progressBar.className = 'progress-bar';
-                
-                progressContainer.appendChild(progressBar);
-                itemContainer.appendChild(itemLabel);
-                itemContainer.appendChild(progressContainer);
 
                 const startTime = performance.now(); // Record start time
 
@@ -138,23 +144,28 @@
                         try {
                             const result = JSON.parse(xhr.responseText);
                             if (result.status === 'success') {
+                                itemLabel.textContent = `✅ ${file.name} - Complete`;
+                                progressBar.style.backgroundColor = '#28a745'; // Success green
                                 uploadedFilenames.push(result.filename); // Collect filename
-                                itemContainer.remove(); // Remove the item from the DOM on success
                             } else {
-                                itemContainer.innerHTML = `❌ ${file.name} - Error: ${result.message}`;
+                                itemLabel.textContent = `❌ ${file.name} - Error: ${result.message}`;
+                                progressBar.style.backgroundColor = '#dc3545'; // Error red
                             }
                         } catch (e) {
-                            itemContainer.innerHTML = `❌ ${file.name} - Error parsing server response.`;
+                            itemLabel.textContent = `❌ ${file.name} - Error parsing server response.`;
+                            progressBar.style.backgroundColor = '#dc3545';
                         }
                     } else {
-                        itemContainer.innerHTML = `❌ ${file.name} - Server error: ${xhr.statusText}`;
+                        itemLabel.textContent = `❌ ${file.name} - Server error: ${xhr.statusText}`;
+                        progressBar.style.backgroundColor = '#dc3545';
                     }
                     if (onCompleteCallback) onCompleteCallback();
                     resolve();
                 });
 
                 xhr.addEventListener('error', () => {
-                    itemContainer.innerHTML = `❌ ${file.name} - Network or server error.`;
+                    itemLabel.textContent = `❌ ${file.name} - Network or server error.`;
+                    progressBar.style.backgroundColor = '#dc3545';
                     if (onCompleteCallback) onCompleteCallback();
                     resolve(); // Resolve so the next file can start
                 });
@@ -163,6 +174,10 @@
                 xhr.send(formData);
             });
         }
+
+        galleryButton.addEventListener('click', () => {
+            window.location.href = '/gallery';
+        });
 
         uploadForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -174,6 +189,7 @@
             }
             uploadedFilenames.length = 0; // Clear previous uploads
             uploadButton.disabled = true;
+            galleryButton.style.display = 'none';
 
             const totalFiles = files.length;
             let completedCount = 0;
@@ -192,11 +208,38 @@
 
             // Pre-populate the UI with all filenames as placeholders
             for (const file of files) {
-                const itemContainer = document.createElement('div');
-                itemContainer.className = 'upload-item-placeholder';
-                itemContainer.textContent = file.name;
-                uploadStatus.appendChild(itemContainer);
-                fileElementMap.set(file, itemContainer);
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'upload-item';
+
+                const itemInner = document.createElement('div');
+                itemInner.className = 'upload-item-inner';
+
+                const thumb = document.createElement('img');
+                thumb.className = 'upload-item-thumb';
+
+                // Generate client-side thumbnail
+                const reader = new FileReader();
+                reader.onload = (e) => { thumb.src = e.target.result; };
+                reader.readAsDataURL(file);
+
+                const progressWrapper = document.createElement('div');
+                progressWrapper.style.flexGrow = '1';
+
+                const itemLabel = document.createElement('div');
+                itemLabel.className = 'upload-item-label';
+                itemLabel.textContent = file.name;
+
+                const progressContainer = document.createElement('div');
+                progressContainer.className = 'progress-bar-container';
+                const progressBar = document.createElement('div');
+                progressBar.className = 'progress-bar';
+                progressContainer.appendChild(progressBar);
+
+                progressWrapper.append(itemLabel, progressContainer);
+                itemInner.append(thumb, progressWrapper);
+                itemDiv.appendChild(itemInner);
+                uploadStatus.appendChild(itemDiv);
+                fileElementMap.set(file, itemDiv);
             }
 
             // --- Concurrent upload with a limit ---
@@ -228,16 +271,10 @@
             uploadStatus.appendChild(totalTimeElement);
 
             uploadButton.disabled = false;
-            fileInput.value = ''; // Clear the file input more reliably
-
-            // After all files are uploaded, redirect to the gallery.
             if (uploadedFilenames.length > 0) {
-                window.location.href = '/gallery';
-
-            } else {
-                // If no files were successfully uploaded, just reset.
-                uploadForm.reset();
+                galleryButton.style.display = 'inline-block';
             }
+            fileInput.value = ''; // Clear the file input more reliably
         });
     </script>
 </body>
