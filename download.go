@@ -3,6 +3,7 @@ package main
 import (
 	"archive/zip"
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -10,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"encoding/json"
-
 )
 
 func downloadPreviewsHandler(w http.ResponseWriter, r *http.Request) {
@@ -270,12 +269,4 @@ func cancelDownloadHandler(w http.ResponseWriter, r *http.Request) {
 	taskProgressMap.Unlock()
 
 	w.WriteHeader(http.StatusOK)
-}
-func updateTaskError(taskID, message string) {
-	taskProgressMap.Lock()
-	defer taskProgressMap.Unlock()
-	if task, ok := taskProgressMap.tasks[taskID]; ok {
-		task.Error = message
-		task.Complete = true
-	}
 }
