@@ -153,6 +153,31 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     }
 
+    function updateTotalCounts(count) {
+        // Update the main gallery total count.
+        const galleryContainer = document.getElementById('gallery-container');
+        if (galleryContainer) {
+            const currentTotal = parseInt(galleryContainer.dataset.totalPhotos, 10);
+            const newTotal = Math.max(0, currentTotal - count);
+            galleryContainer.dataset.totalPhotos = newTotal;
+        }
+
+        // Update the "All" photos count in the year bar.
+        const allLink = document.querySelector('.year-bar .year-link[href="/gallery"] sup');
+        if (allLink) {
+            const currentAllCount = parseInt(allLink.textContent, 10);
+            const newAllCount = Math.max(0, currentAllCount - count);
+            allLink.textContent = newAllCount;
+        }
+
+        // Update the count for the currently filtered year, if any.
+        const currentYear = galleryContainer.dataset.filterYear;
+        if (currentYear && currentYear !== "0") {
+            const yearLink = document.querySelector(`.year-bar .year-link[data-year="${currentYear}"] sup`);
+            if (yearLink) yearLink.textContent = Math.max(0, parseInt(yearLink.textContent, 10) - count);
+        }
+    }
+
     /* --- Selection & Action Bar Logic --- */
     const selectionBar = document.getElementById('selection-bar');
     const selectionCount = document.getElementById('selection-count');
@@ -223,8 +248,24 @@ document.addEventListener('DOMContentLoaded', (event) => {
             .then(response => {
                 if (response.ok) {
                     // On success, remove the items from the DOM and reset the selection bar
-                    selectedCheckboxes.forEach(cb => cb.closest('.photo-item').remove());
+                    const galleriesToUpdate = new Set();
+                    selectedCheckboxes.forEach(cb => {
+                        const photoItem = cb.closest('.photo-item');
+                        if (photoItem) {
+                            galleriesToUpdate.add(photoItem.parentElement);
+                            photoItem.remove();
+                        }
+                    });
+
+                    // Check any galleries that were modified to see if they are now empty.
+                    galleriesToUpdate.forEach(gallery => {
+                        if (gallery && gallery.children.length === 0) {
+                            gallery.previousElementSibling?.remove(); // Remove date header
+                            gallery.remove();
+                        }
+                    });
                     updateSelectionBar();
+                    updateTotalCounts(filenames.length);
                 } else {
                     alert(`Error deleting photos: ${response.statusText}`);
                 }
@@ -518,7 +559,17 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 .then(response => {
                     if (response.ok) {
                         // If deletion is successful, remove the photo item from the DOM
+                        const gallery = photoItem.parentElement;
                         photoItem.remove();
+                        updateTotalCounts(1);
+
+                        // Check if the gallery is now empty
+                        if (gallery && gallery.children.length === 0) {
+                            // If empty, remove the gallery and its corresponding date header
+                            const dateHeader = gallery.previousElementSibling;
+                            dateHeader?.remove();
+                            gallery.remove();
+                        }
                     } else {
                         // If there was an error, alert the user
                         alert(`Error deleting photo: ${response.statusText}`);
