@@ -32,18 +32,18 @@ func downloadPreviewsHandler(w http.ResponseWriter, r *http.Request) {
 	buf := new(bytes.Buffer)
 	zipWriter := zip.NewWriter(buf)
 
+	userDB, err := getUserDB(username)
+	if err != nil {
+		http.Error(w, "Could not access user database", http.StatusInternalServerError)
+		return
+	}
+
 	// 4. Add files to the zip.
 	for _, filename := range filenames {
-		photo, err := getPhotoByFilename(filename)
+		photo, err := getPhotoByFilename(userDB, username, filename)
 		if err != nil {
 			log.Printf("Could not find photo '%s' for zipping: %v", filename, err)
 			continue // Skip this file
-		}
-
-		// Security check: ensure user owns the photo
-		if photo.UploadedBy != username {
-			log.Printf("Security alert: User '%s' attempted to download preview for photo '%s' owned by '%s'", username, filename, photo.UploadedBy)
-			continue
 		}
 
 		// Construct the path to the preview file on disk
@@ -136,6 +136,13 @@ func createZipArchive(taskID, username string, filenames []string, archiveType s
 	defer zipFile.Close()
 	zipWriter := zip.NewWriter(zipFile)
 
+	userDB, err := getUserDB(username)
+	if err != nil {
+		log.Printf("Task %s: failed to get user DB: %v", taskID, err)
+		updateTaskError(taskID, "Failed to access user database.")
+		return
+	}
+
 	for i, filename := range filenames {
 		// Check for cancellation at the beginning of each loop iteration.
 		taskProgressMap.RLock()
@@ -151,8 +158,8 @@ func createZipArchive(taskID, username string, filenames []string, archiveType s
 		taskProgressMap.tasks[taskID].Filename = filename
 		taskProgressMap.Unlock()
 
-		photo, err := getPhotoByFilename(filename)
-		if err != nil || photo.UploadedBy != username {
+		photo, err := getPhotoByFilename(userDB, username, filename)
+		if err != nil {
 			log.Printf("Task %s: skipping file %s (not found or permission denied)", taskID, filename)
 			continue
 		}

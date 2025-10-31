@@ -146,7 +146,13 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 	year, _ := strconv.Atoi(yearStr) // Atoi returns 0 on error, which we use to mean "no filter".
 
 	// Get all photos matching the filter.
-	photos, err := getPhotos(username, year)
+	userDB, err := getUserDB(username)
+	if err != nil {
+		http.Error(w, "Could not access user database.", http.StatusInternalServerError)
+		return
+	}
+
+	photos, err := getPhotos(userDB, username, year)
 	if err != nil {
 		log.Printf("Error getting recent photos: %v", err)
 		// If we can't get photos, we can still render the page but with an empty photo slice.
@@ -191,21 +197,21 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Get the total number of photos for the frontend to know when to stop loading.
 	// The count must also be filtered by year.
-	totalPhotos, err := getTotalPhotoCount(username, year)
+	totalPhotos, err := getTotalPhotoCount(userDB, year)
 	if err != nil {
 		log.Printf("Error getting total photo count: %v", err)
 		totalPhotos = 0 // Default to 0 on error
 	}
 
 	// Get total count for the "All" link, regardless of year filter.
-	allPhotosCount, err := getTotalPhotoCount(username, 0)
+	allPhotosCount, err := getTotalPhotoCount(userDB, 0)
 	if err != nil {
 		log.Printf("Error getting total count for 'All' photos: %v", err)
 		allPhotosCount = 0
 	}
 
 	// Get photo counts for the year bar
-	photoCounts, err := getPhotoCountsByYear(username)
+	photoCounts, err := getPhotoCountsByYear(userDB)
 	if err != nil {
 		log.Printf("Error getting photo counts by year: %v", err)
 		photoCounts = make(map[int]int) // Ensure it's not nil
@@ -276,8 +282,14 @@ func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userDB, err := getUserDB(username)
+	if err != nil {
+		http.Error(w, "Could not access user database.", http.StatusInternalServerError)
+		return
+	}
+
 	// Retrieve photo metadata from the database.
-	photoData, err := getPhotoByFilename(filename)
+	photoData, err := getPhotoByFilename(userDB, username, filename)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Photo not found", http.StatusNotFound)
@@ -288,19 +300,14 @@ func photoInfoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Security Check: Ensure the logged-in user owns the photo.
-	if photoData.UploadedBy != username {
-		http.Error(w, "Forbidden", http.StatusForbidden)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(photoData)
 }
 
 func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 	// First, verify the user has a valid session.
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -315,7 +322,7 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case http.MethodDelete:
-		handleDeletePhoto(w, filename)
+		handleDeletePhoto(w, username, filename)
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}
@@ -377,7 +384,7 @@ func startBatchUpdateDateHandler(w http.ResponseWriter, r *http.Request) {
 			taskProgressMap.Unlock()
 
 			// Perform the update
-			if err := updatePhotoDateAndPath(filename, user, newDate); err != nil {
+			if err := updatePhotoDateAndPath(user, filename, newDate); err != nil {
 				log.Printf("Task %s: failed to update date for %s: %v", id, filename, err)
 				// Continue to the next file
 			}
@@ -424,7 +431,7 @@ func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 5. Call the core logic function
-	err = updatePhotoDateAndPath(payload.Filename, username, newDate)
+	err = updatePhotoDateAndPath(username, payload.Filename, newDate)
 	if err != nil {
 		if err.Error() == "forbidden" {
 			http.Error(w, "Forbidden", http.StatusForbidden)
@@ -442,9 +449,9 @@ func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
 }
 
-func handleDeletePhoto(w http.ResponseWriter, filename string) {
+func handleDeletePhoto(w http.ResponseWriter, username, filename string) {
 	// 1. Get photo metadata from DB to find its filepath.
-	err := deletePhoto(filename)
+	err := deletePhoto(username, filename)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			http.Error(w, "Photo not found", http.StatusNotFound)
@@ -461,7 +468,8 @@ func handleDeletePhoto(w http.ResponseWriter, filename string) {
 
 func batchDeletePhotosHandler(w http.ResponseWriter, r *http.Request) {
 	// 1. Authenticate user
-	if _, ok := isValidSession(db, r); !ok {
+	username, ok := isValidSession(db, r)
+	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
@@ -485,7 +493,7 @@ func batchDeletePhotosHandler(w http.ResponseWriter, r *http.Request) {
 	// We'll collect errors but not stop on the first one.
 	var errors []string
 	for _, filename := range payload.Filenames {
-		if err := deletePhoto(filename); err != nil {
+		if err := deletePhoto(username, filename); err != nil {
 			log.Printf("Failed to delete photo %s during batch operation: %v", filename, err)
 			errors = append(errors, fmt.Sprintf("Failed to delete %s: %v", filename, err.Error()))
 		}
@@ -501,9 +509,14 @@ func batchDeletePhotosHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // deletePhoto contains the core logic to delete a single photo and its files.
-func deletePhoto(filename string) error {
+func deletePhoto(username, filename string) error {
+	userDB, err := getUserDB(username)
+	if err != nil {
+		return err
+	}
+
 	// Get photo metadata from DB to find its filepath.
-	photo, err := getPhotoByFilename(filename)
+	photo, err := getPhotoByFilename(userDB, username, filename)
 	if err != nil {
 		return err // Propagate error (e.g., sql.ErrNoRows)
 	}
@@ -525,7 +538,7 @@ func deletePhoto(filename string) error {
 	}
 
 	// 4. Delete the database record.
-	if err := deletePhotoByFilename(filename); err != nil {
+	if err := deletePhotoByFilename(userDB, filename); err != nil {
 		log.Printf("Error deleting photo record for %s: %v", filename, err)
 		return fmt.Errorf("error deleting photo from database: %w", err)
 	}

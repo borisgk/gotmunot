@@ -16,6 +16,7 @@ type User struct {
 	UUID     string
 	Username string
 	Password string // Hash!
+	DBPath   string
 }
 
 // hashPassword hashes the given password using bcrypt.
@@ -53,7 +54,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Retrieve user from the database.
 		var user User
-		err := db.QueryRow("SELECT id, uuid, username, password FROM users WHERE username = ?", username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password)
+		err := db.QueryRow("SELECT id, uuid, username, password, db_path FROM users WHERE username = ?", username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password, &user.DBPath)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				http.Error(w, "Invalid username or password - please try again", http.StatusUnauthorized)
@@ -117,7 +118,7 @@ func apiLoginHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Retrieve user from the database.
 	var user User
-	err := db.QueryRow("SELECT id, uuid, username, password FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password)
+	err := db.QueryRow("SELECT id, uuid, username, password, db_path FROM users WHERE username = ?", creds.Username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password, &user.DBPath)
 	if err != nil {
 		http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 		return

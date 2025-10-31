@@ -28,12 +28,12 @@ type PhotoMetadata struct {
 }
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
-func getPhotos(username string, year int) ([]PhotoMetadata, error) {
-	query := `SELECT id, filename, filepath, uploaded_by, uploaded_at, 
+func getPhotos(userDB *sql.DB, username string, year int) ([]PhotoMetadata, error) {
+	query := `SELECT id, filename, filepath, uploaded_at, 
 		image_width, image_length, date_time,
 		thumb_width, thumb_height, preview_width, preview_height
-		FROM photos WHERE uploaded_by = ?`
-	args := []interface{}{username}
+		FROM photos WHERE 1=1`
+	args := []interface{}{}
 
 	if year > 0 {
 		query += " AND CAST(SUBSTR(date_time, 1, 4) AS INTEGER) = ?"
@@ -42,21 +42,21 @@ func getPhotos(username string, year int) ([]PhotoMetadata, error) {
 
 	query += ` ORDER BY date_time DESC`
 
-	return queryPhotos(query, args...)
+	return queryPhotos(userDB, username, query, args...)
 }
 
 // getTotalPhotoCount returns the total number of photos in the database.
-func getTotalPhotoCount(username string, year int) (int, error) {
+func getTotalPhotoCount(userDB *sql.DB, year int) (int, error) {
 	var count int
-	query := "SELECT COUNT(*) FROM photos WHERE uploaded_by = ?"
-	args := []interface{}{username}
+	query := "SELECT COUNT(*) FROM photos WHERE 1=1"
+	args := []interface{}{}
 
 	if year > 0 {
 		query += " AND CAST(SUBSTR(date_time, 1, 4) AS INTEGER) = ?"
 		args = append(args, year)
 	}
 
-	err := photosDB.QueryRow(query, args...).Scan(&count)
+	err := userDB.QueryRow(query, args...).Scan(&count)
 	if err != nil {
 		return 0, err
 	}
@@ -64,11 +64,11 @@ func getTotalPhotoCount(username string, year int) (int, error) {
 }
 
 // getPhotoByFilename retrieves all metadata for a single photo by its filename.
-func getPhotoByFilename(filename string) (PhotoMetadata, error) {
+func getPhotoByFilename(userDB *sql.DB, username, filename string) (PhotoMetadata, error) {
 	var p PhotoMetadata
-	row := photosDB.QueryRow(`
+	row := userDB.QueryRow(`
         SELECT 
-            id, filename, filepath, uploaded_by, uploaded_at, image_width, image_length, date_time,
+            id, filename, filepath, uploaded_at, image_width, image_length, date_time,
 			thumb_width, thumb_height, preview_width, preview_height
         FROM photos
         WHERE filename = ?
@@ -78,19 +78,21 @@ func getPhotoByFilename(filename string) (PhotoMetadata, error) {
 		return p, err
 	}
 
+	// Manually set the username since it's not in the user-specific DB.
+	p.UploadedBy = username
 	return p, nil
 }
 
 // getPhotoCountsByYear retrieves a map of year to photo count for a user.
-func getPhotoCountsByYear(username string) (map[int]int, error) {
-	rows, err := photosDB.Query(`
+func getPhotoCountsByYear(userDB *sql.DB) (map[int]int, error) {
+	rows, err := userDB.Query(`
 		SELECT
 			CAST(SUBSTR(date_time, 1, 4) AS INTEGER) as year,
 			COUNT(*) as count
 		FROM photos
-		WHERE uploaded_by = ? AND year IS NOT NULL
+		WHERE year IS NOT NULL
 		GROUP BY year
-	`, username)
+	`)
 	if err != nil {
 		return nil, err
 	}
@@ -108,8 +110,8 @@ func getPhotoCountsByYear(username string) (map[int]int, error) {
 }
 
 // queryPhotos is a helper function to run a query and scan the results into a slice of PhotoMetadata.
-func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
-	rows, err := photosDB.Query(query, args...)
+func queryPhotos(userDB *sql.DB, username, query string, args ...interface{}) ([]PhotoMetadata, error) {
+	rows, err := userDB.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -120,6 +122,8 @@ func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
 		if err := scanPhoto(rows, &p); err != nil {
 			return nil, err
 		}
+		// Manually set the username since it's not in the user-specific DB.
+		p.UploadedBy = username
 		photos = append(photos, p)
 	}
 	return photos, rows.Err()
@@ -127,7 +131,12 @@ func queryPhotos(query string, args ...interface{}) ([]PhotoMetadata, error) {
 
 // savePhotoMetadata saves photo metadata to the database.
 func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
-	tx, err := photosDB.Begin()
+	userDB, err := getUserDB(p.UploadedBy)
+	if err != nil {
+		return 0, fmt.Errorf("could not get user database for %s: %w", p.UploadedBy, err)
+	}
+
+	tx, err := userDB.Begin()
 	if err != nil {
 		return 0, fmt.Errorf("failed to begin transaction: %w", err)
 	}
@@ -135,18 +144,18 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 
 	stmt, err := tx.Prepare(`
 		INSERT INTO photos (
-			filename, filepath, uploaded_by, uploaded_at, 
+			filename, filepath, uploaded_at, 
 			image_width, image_length, date_time,
 			thumb_width, thumb_height, preview_width, preview_height
 		)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
 	if err != nil {
 		return 0, fmt.Errorf("failed to prepare statement within transaction: %w", err)
 	}
 	defer stmt.Close() // Close the statement when the function returns
 
 	result, err := stmt.Exec(
-		p.Filename, p.Filepath, p.UploadedBy, p.UploadedAt,
+		p.Filename, p.Filepath, p.UploadedAt,
 		p.ImageWidth, p.ImageLength, p.DateTime,
 		p.ThumbWidth, p.ThumbHeight, p.PreviewWidth, p.PreviewHeight,
 	)
@@ -166,8 +175,8 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 }
 
 // deletePhotoByFilename deletes a photo's record from the database by its filename.
-func deletePhotoByFilename(filename string) error {
-	_, err := photosDB.Exec("DELETE FROM photos WHERE filename = ?", filename)
+func deletePhotoByFilename(userDB *sql.DB, filename string) error {
+	_, err := userDB.Exec("DELETE FROM photos WHERE filename = ?", filename)
 	if err != nil {
 		return err
 	}
@@ -176,9 +185,14 @@ func deletePhotoByFilename(filename string) error {
 
 // updatePhotoDateAndPath moves a photo's files to a new directory structure based on a new date
 // and updates its metadata in the database within a single transaction.
-func updatePhotoDateAndPath(filename, username string, newDate time.Time) error {
+func updatePhotoDateAndPath(username, filename string, newDate time.Time) error {
+	userDB, err := getUserDB(username)
+	if err != nil {
+		return err
+	}
+
 	// Get current photo metadata to know the old path and verify ownership.
-	photo, err := getPhotoByFilename(filename)
+	photo, err := getPhotoByFilename(userDB, username, filename)
 	if err != nil {
 		return err // Propagate sql.ErrNoRows or other DB errors.
 	}
@@ -196,7 +210,7 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 
 	// If the path hasn't changed, we only need to update the date in the DB.
 	if newRelativePath == photo.Filepath {
-		_, err := photosDB.Exec("UPDATE photos SET date_time = ? WHERE filename = ?", newDate, filename)
+		_, err := userDB.Exec("UPDATE photos SET date_time = ? WHERE filename = ?", newDate, filename)
 		return err
 	}
 
@@ -212,7 +226,7 @@ func updatePhotoDateAndPath(filename, username string, newDate time.Time) error 
 	newThumbPath := filepath.Join(baseUploadDir, "thumbs", newRelativePath)
 
 	// --- Perform file move and DB update in a transaction ---
-	tx, err := photosDB.Begin()
+	tx, err := userDB.Begin()
 	if err != nil {
 		return err
 	}
@@ -267,7 +281,7 @@ func scanPhoto(scanner interface{ Scan(...interface{}) error }, p *PhotoMetadata
 	var dateTime sql.NullTime
 
 	err := scanner.Scan(
-		&p.ID, &p.Filename, &p.Filepath, &p.UploadedBy, &p.UploadedAt,
+		&p.ID, &p.Filename, &p.Filepath, &p.UploadedAt,
 		&imageWidth, &imageLength, &dateTime, &thumbWidth, &thumbHeight,
 		&previewWidth, &previewHeight,
 	)

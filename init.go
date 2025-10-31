@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sync"
 
 	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/google/uuid"
@@ -15,7 +16,12 @@ import (
 
 var db *sql.DB
 var tmpl *template.Template
-var photosDB *sql.DB // photosDB remains global as it's the connection pool
+
+// userDBs is a cache for active user database connections.
+var userDBs = struct {
+	sync.RWMutex
+	connections map[string]*sql.DB
+}{connections: make(map[string]*sql.DB)}
 
 func init() {
 	fmt.Println("Initializing TM25...")
@@ -92,48 +98,14 @@ func init() {
 	_, err = db.Exec(`
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE NOT NULL,
+            uuid TEXT UNIQUE,
             username TEXT UNIQUE,
-            password TEXT
+            password TEXT,
+            db_path TEXT
         )
     `)
 	if err != nil {
 		log.Fatalf("Error creating users table: %v", err)
-	}
-
-	// Initialize the photos database (global)
-	dbPathPhotos := filepath.Join(AppConfig.DataDir, "photos.db?_busy_timeout=5000")
-	photosDB, err = sql.Open("sqlite", dbPathPhotos)
-	if err != nil {
-		log.Fatalf("Error opening photos database: %v", err)
-	}
-
-	// Enable Write-Ahead Logging for better concurrency.
-	_, err = photosDB.Exec("PRAGMA journal_mode=WAL;")
-	if err != nil {
-		log.Fatalf("Error enabling WAL mode for photos.db: %v", err)
-	}
-	log.Println("Photos database WAL mode enabled.")
-
-	// Create the photos table if it doesn't exist.
-	_, err = photosDB.Exec(`
-		CREATE TABLE IF NOT EXISTS photos (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			filename TEXT,
-			filepath TEXT UNIQUE,
-			uploaded_by TEXT,
-			uploaded_at DATETIME,
-			image_width INTEGER,
-			image_length INTEGER,
-			date_time DATETIME,
-			thumb_width INTEGER,
-			thumb_height INTEGER,
-			preview_width INTEGER,
-			preview_height INTEGER
-		)
-	`)
-	if err != nil {
-		log.Fatalf("Error creating photos table: %v", err)
 	}
 
 	log.Println("Photos database initialized.")
@@ -161,10 +133,19 @@ func init() {
 		if count == 0 {
 			userUUID := uuid.New().String()
 			hashedPassword := hashPassword(password)
-			_, err := db.Exec("INSERT INTO users (uuid, username, password) VALUES (?, ?, ?)", userUUID, username, hashedPassword)
+			dbPath := filepath.Join(AppConfig.DataDir, fmt.Sprintf("%s.db", userUUID))
+
+			_, err := db.Exec("INSERT INTO users (uuid, username, password, db_path) VALUES (?, ?, ?, ?)", userUUID, username, hashedPassword, dbPath)
 			if err != nil {
 				log.Fatalf("Error adding default user %s: %v", username, err)
 			}
+
+			// Create and initialize the user's personal database
+			userDB, err := openUserDB(dbPath)
+			if err != nil {
+				log.Fatalf("Could not create database for user %s: %v", username, err)
+			}
+			userDB.Close() // Close connection after creation
 		}
 	}
 
@@ -181,4 +162,77 @@ func init() {
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}
+}
+
+// getUserDB returns a database connection for a specific user.
+// It uses a cache to avoid repeatedly opening files.
+func getUserDB(username string) (*sql.DB, error) {
+	userDBs.RLock()
+	userDB, ok := userDBs.connections[username]
+	userDBs.RUnlock()
+
+	if ok {
+		return userDB, nil
+	}
+
+	// Connection not in cache, so we need a write lock to add it.
+	userDBs.Lock()
+	defer userDBs.Unlock()
+
+	// Double-check if another goroutine created it while we were waiting for the lock.
+	userDB, ok = userDBs.connections[username]
+	if ok {
+		return userDB, nil
+	}
+
+	// Get the user's database path from the main users.db
+	var dbPath string
+	err := db.QueryRow("SELECT db_path FROM users WHERE username = ?", username).Scan(&dbPath)
+	if err != nil {
+		return nil, fmt.Errorf("could not find db path for user %s: %w", username, err)
+	}
+
+	// Open the user's database
+	userDB, err = openUserDB(dbPath)
+	if err != nil {
+		return nil, err
+	}
+
+	// Store the new connection in the cache.
+	userDBs.connections[username] = userDB
+	log.Printf("Opened and cached database connection for user: %s", username)
+
+	return userDB, nil
+}
+
+// openUserDB handles the logic of opening a user's DB file and ensuring the schema is correct.
+func openUserDB(dbPath string) (*sql.DB, error) {
+	dsn := fmt.Sprintf("%s?_busy_timeout=5000", dbPath)
+	userDB, err := sql.Open("sqlite", dsn)
+	if err != nil {
+		return nil, err
+	}
+
+	// Enable WAL mode for better concurrency.
+	if _, err := userDB.Exec("PRAGMA journal_mode=WAL;"); err != nil {
+		return nil, fmt.Errorf("failed to enable WAL mode on %s: %w", dbPath, err)
+	}
+
+	// Create the photos table, now without 'uploaded_by'.
+	_, err = userDB.Exec(`
+		CREATE TABLE IF NOT EXISTS photos (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			filename TEXT,
+			filepath TEXT UNIQUE,
+			uploaded_at DATETIME,
+			image_width INTEGER,
+			image_length INTEGER,
+			date_time DATETIME,
+			thumb_width INTEGER,
+			thumb_height INTEGER,
+			preview_width INTEGER,
+			preview_height INTEGER
+		)
+	`)
+	return userDB, err
 }
