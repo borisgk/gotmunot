@@ -36,8 +36,8 @@
             border-bottom: 1px solid #eee;
         }
         .upload-item-thumb {
-            width: 40px;
-            height: 40px;
+            width: 80px;
+            height: 80px;
             object-fit: cover;
             border-radius: 4px;
             background-color: #f0f0f0;
@@ -66,6 +66,11 @@
             height: 100px;
             object-fit: cover;
             border-radius: 4px;
+        }
+        #upload-status {
+            max-height: 50vh; /* 50% of the viewport height */
+            overflow-y: auto;
+            border: 1px solid #ddd;
         }
     </style>
 </head>
@@ -127,6 +132,8 @@
                 const xhr = new XMLHttpRequest();
 
                 itemLabel.textContent = `Uploading ${file.name}...`;
+                // Scroll this item into view when its upload starts.
+                itemContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
                 const startTime = performance.now(); // Record start time
 
