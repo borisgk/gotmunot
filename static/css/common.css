@@ -1,0 +1,55 @@
+body {
+    font-family: 'Open Sans', sans-serif;
+    margin: 0; /* Reset default body margin */
+}
+
+/* Navigation Bar Styles */
+.top-nav {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+    position: fixed; /* Fix it to the top */
+    top: 0;
+    width: 100%;
+    z-index: 999;
+    display: flex; /* Use flexbox for alignment */
+    align-items: center; /* Vertically center items */
+}
+.top-nav a {
+    color: #343a40;
+    text-align: center;
+    padding: 14px 16px;
+    text-decoration: none;
+    font-size: 17px;
+}
+.top-nav a:hover {
+    background-color: #e9ecef;
+    color: #0056b3;
+}
+.top-nav .logo {
+    height: 30px; /* Adjust height as needed */
+    margin: 0 10px 0 15px; /* Add some spacing */
+}
+.top-nav-right {
+    margin-left: auto; /* Push the right-aligned items to the end */
+}
+
+/* Selection Action Bar Styles */
+.selection-action-bar {
+    display: none; /* Hidden by default */
+    float: left;
+    position: relative; /* For dropdown positioning */
+}
+.selection-action-bar.active {
+    display: block; /* Show when active */
+}
+.selection-action-bar .dropdown-content {
+    display: none; /* Controlled by .show class */
+    position: absolute;
+    top: 50px; /* Position below the nav bar */
+    left: 0;
+    background-color: #f1f1f1;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1000; /* Ensure it's above gallery content */
+    border-radius: 4px;
+}

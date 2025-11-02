@@ -7,28 +7,13 @@
 	<link rel="stylesheet" href="/static/css/fonts.css">
 
 	<script src="/static/js/task-poller.js"></script>
+	<link rel="stylesheet" href="/static/css/common.css">
 	<link rel="stylesheet" href="/static/css/gallery.css">
 	<script src="/static/js/gallery.js"></script>
 </head>
 <body>
-	<div class="top-nav">
-		<img src="/logo.png" alt="Logo" class="logo">
-		<a href="/gallery">Gallery</a>
-		<a href="/upload-page">Upload</a>
-		<div id="selection-bar" class="selection-action-bar">
-			<a href="#" id="selection-menu-trigger"><span id="selection-count"></span></a>
-			<div id="selection-dropdown" class="dropdown-content">
-				<a href="#" id="clear-selection-btn">Clear selection</a>
-				<a href="#" id="delete-selected-btn">Delete Selected</a>
-				<a href="#" id="batch-change-date-btn">Change Date</a>
-				<a href="#" id="download-previews-btn">Download previews</a>
-				<a href="#" id="download-originals-btn">Download originals</a>
-			</div>
-		</div>
-		<div class="top-nav-right">
-			<a href="/logout">Logout ({{.Username}})</a>
-		</div>
-	</div>
+	<!-- Showing the top application bar which is common for all pages -->
+	{{template "header" .}}
 
 	{{if .Years}}
 	<div class="year-bar">

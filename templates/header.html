@@ -1,0 +1,21 @@
+{{define "header"}}
+	<div class="top-nav">
+		<img src="/logo.png" alt="Logo" class="logo">
+		<a href="/gallery">Gallery</a>
+        <a href="/albums">Albums</a>
+		<a href="/upload-page">Upload</a>
+		<div id="selection-bar" class="selection-action-bar">
+			<a href="#" id="selection-menu-trigger"><span id="selection-count"></span></a>
+			<div id="selection-dropdown" class="dropdown-content">
+				<a href="#" id="clear-selection-btn">Clear selection</a>
+				<a href="#" id="delete-selected-btn">Delete Selected</a>
+				<a href="#" id="batch-change-date-btn">Change Date</a>
+				<a href="#" id="download-previews-btn">Download previews</a>
+				<a href="#" id="download-originals-btn">Download originals</a>
+			</div>
+		</div>
+		<div class="top-nav-right">
+			<a href="/logout">Logout ({{.Username}})</a>
+		</div>
+	</div>
+{{end}}

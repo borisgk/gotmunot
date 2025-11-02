@@ -35,6 +35,12 @@ func main() {
 		fmt.Fprintf(w, "TM25 is running!")
 	})
 
+	// Define handlers for the main pages shown in the top menu
+	// Handler for the gallery page
+	http.HandleFunc("/gallery", galleryHandler)
+	// Handler for the albums page
+	http.HandleFunc("/albums", albumsHandler)
+
 	// Initialize and start the metadata saving queue and worker.
 	// A buffer of 100 can handle bursts of uploads.
 	photoMetadataQueue = make(chan *PhotoMetadata, 100)
@@ -44,8 +50,6 @@ func main() {
 	http.HandleFunc("/login", loginHandler)
 	// Handler for logout page
 	http.HandleFunc("/logout", logoutHandler)
-	// Handler for the gallery page
-	http.HandleFunc("/gallery", galleryHandler)
 	//Handler for the upload
 	http.HandleFunc("/upload", uploadHandler)
 	// Handler for the upload page
