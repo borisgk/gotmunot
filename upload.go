@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
 	"time"
 
 	_ "image/jpeg" // Import for JPEG decoding
@@ -233,42 +234,65 @@ func writeAllFiles(originalBytes, thumbBytes, previewBytes []byte, originalPath,
 
 // generatePreviewAndThumbnailBytes creates a preview from the original image,
 // and then creates a thumbnail from that preview to save processing.
-func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, thumbBytes []byte, previewWidth, previewHeight, thumbWidth, thumbHeight int, err error) {
-	originalImage, err := vips.NewImageFromBuffer(originalImageBytes)
-	if err != nil {
-		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to create image from buffer: %w", err)
-	}
-	defer originalImage.Close()
-
-	// --- 1. Generate Preview ---
-	// Use Thumbnail which is highly optimized and auto-rotates.
-	if err = originalImage.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
-		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to generate preview: %w", err)
-	}
-	previewWidth = originalImage.Width()
-	previewHeight = originalImage.Height()
-
-	// Export preview to bytes
+func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, thumbBytes []byte, previewWidth, previewHeight, thumbWidth, thumbHeight int, finalErr error) {
 	jpegParams := vips.NewJpegExportParams()
 	jpegParams.Quality = 80
 	jpegParams.StripMetadata = true
-	previewBytes, _, err = originalImage.ExportJpeg(jpegParams)
-	if err != nil {
-		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to export preview jpeg: %w", err)
-	}
 
-	// --- 2. Generate Thumbnail from the (now resized) preview image ---
-	if err = originalImage.Thumbnail(500, 0, vips.InterestingNone); err != nil {
-		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to generate thumbnail from preview: %w", err)
-	}
-	thumbWidth = originalImage.Width()
-	thumbHeight = originalImage.Height()
+	var wg sync.WaitGroup
+	wg.Add(2)
 
-	// Export thumbnail to bytes
-	thumbBytes, _, err = originalImage.ExportJpeg(jpegParams)
-	if err != nil {
-		return nil, nil, 0, 0, 0, 0, fmt.Errorf("govips: failed to export thumbnail jpeg: %w", err)
-	}
+	// Goroutine to generate the preview
+	go func() {
+		defer wg.Done()
+		img, err := vips.NewImageFromBuffer(originalImageBytes)
+		if err != nil {
+			finalErr = fmt.Errorf("govips: failed to create image for preview: %w", err)
+			return
+		}
+		defer img.Close()
+
+		if err = img.Thumbnail(1920, 0, vips.InterestingNone); err != nil {
+			finalErr = fmt.Errorf("govips: failed to generate preview: %w", err)
+			return
+		}
+		previewWidth = img.Width()
+		previewHeight = img.Height()
+
+		pBytes, _, err := img.ExportJpeg(jpegParams)
+		if err != nil {
+			finalErr = fmt.Errorf("govips: failed to export preview jpeg: %w", err)
+			return
+		}
+		previewBytes = pBytes
+	}()
+
+	// Goroutine to generate the thumbnail
+	go func() {
+		defer wg.Done()
+		img, err := vips.NewImageFromBuffer(originalImageBytes)
+		if err != nil {
+			finalErr = fmt.Errorf("govips: failed to create image for thumbnail: %w", err)
+			return
+		}
+		defer img.Close()
+
+		if err = img.Thumbnail(500, 0, vips.InterestingNone); err != nil {
+			finalErr = fmt.Errorf("govips: failed to generate thumbnail: %w", err)
+			return
+		}
+		thumbWidth = img.Width()
+		thumbHeight = img.Height()
+
+		tBytes, _, err := img.ExportJpeg(jpegParams)
+		if err != nil {
+			finalErr = fmt.Errorf("govips: failed to export thumbnail jpeg: %w", err)
+			return
+		}
+		thumbBytes = tBytes
+	}()
+
+	wg.Wait()
 
 	return
 }

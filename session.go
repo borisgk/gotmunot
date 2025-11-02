@@ -1,7 +1,9 @@
 package main
 
 import (
+	"crypto/rand"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"log"
 	"net/http"
@@ -83,6 +85,12 @@ func isValidSession(db *sql.DB, r *http.Request) (string, bool) {
 
 // Generate a random session token
 func generateSessionToken() string {
-	// In a real application, use a cryptographically secure random number generator.
-	return fmt.Sprintf("%d", time.Now().UnixNano())
+	// Generate 32 random bytes for a secure token.
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		// This is a critical error, in a real app you might want to panic.
+		log.Printf("FATAL: could not generate random bytes for session token: %v", err)
+		return fmt.Sprintf("%d", time.Now().UnixNano()) // Fallback to less secure method
+	}
+	return hex.EncodeToString(b)
 }

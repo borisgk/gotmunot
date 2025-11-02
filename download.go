@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -49,13 +50,6 @@ func downloadPreviewsHandler(w http.ResponseWriter, r *http.Request) {
 		// Construct the path to the preview file on disk
 		previewPath := filepath.Join(AppConfig.PhotoUploadDir, photo.UploadedBy, "previews", photo.Filepath)
 
-		// Read the file content
-		fileData, err := os.ReadFile(previewPath)
-		if err != nil {
-			log.Printf("Could not read preview file '%s': %v", previewPath, err)
-			continue
-		}
-
 		// Strip the timestamp prefix from the filename for the zip entry
 		// e.g., "1698512345-my-photo.jpg" -> "my-photo.jpg"
 		_, strippedFilename, _ := strings.Cut(filename, "-")
@@ -70,8 +64,16 @@ func downloadPreviewsHandler(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		// Write the file data to the zip entry
-		_, err = f.Write(fileData)
+		// Open the file to stream its content
+		fileToZip, err := os.Open(previewPath)
+		if err != nil {
+			log.Printf("Could not open preview file for zipping '%s': %v", previewPath, err)
+			continue
+		}
+
+		// Stream the file content directly to the zip entry
+		_, err = io.Copy(f, fileToZip)
+		fileToZip.Close() // Close the file handle
 		if err != nil {
 			log.Printf("Could not write data to zip for '%s': %v", strippedFilename, err)
 			continue
