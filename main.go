@@ -165,21 +165,27 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		currentDateStr := ""
 		var currentGroup *DayGroup
 
-		for _, p := range photos {
+		for i := range photos {
+			p := &photos[i] // Use a pointer to modify the original photo in the slice.
+
+			// Pre-calculate paths for the template before any other logic.
+			p.ThumbPath = filepath.Join("/media", username, "thumbs", p.Filepath)
+			p.PreviewPath = filepath.Join("/media", username, "previews", p.Filepath)
+
 			// When filtering by year, skip any photos that don't match the filter year.
 			// This prevents incorrect grouping from the last day of the previous year.
-			if year > 0 && getPhotoTime(&p).Year() != year {
+			if year > 0 && getPhotoTime(p).Year() != year {
 				continue
 			}
-			photoDateStr := getPhotoDateString(&p)
+			photoDateStr := getPhotoDateString(p)
 			if photoDateStr != currentDateStr {
 				if currentGroup != nil {
 					dayGroups = append(dayGroups, *currentGroup)
 				}
-				currentGroup = &DayGroup{Date: getPhotoTime(&p)}
+				currentGroup = &DayGroup{Date: getPhotoTime(p)}
 				currentDateStr = photoDateStr
 			}
-			currentGroup.Photos = append(currentGroup.Photos, p)
+			currentGroup.Photos = append(currentGroup.Photos, *p)
 			currentGroup.Count++
 		}
 		if currentGroup != nil {

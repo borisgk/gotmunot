@@ -149,16 +149,8 @@ func init() {
 		}
 	}
 
-	funcMap := template.FuncMap{
-		"toThumbPath": func(username, originalPath string) string {
-			return filepath.Join(username, "thumbs", originalPath)
-		},
-		"toPreviewPath": func(username, originalPath string) string {
-			return filepath.Join(username, "previews", originalPath)
-		},
-	}
 	// Parse the templates
-	tmpl, err = template.New("").Funcs(funcMap).ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html")
+	tmpl, err = template.ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html")
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}

@@ -55,8 +55,8 @@
 					{{range .Photos}}
 					<div class="photo-item" data-year="{{.DateTime.Year}}" style="--aspect-ratio: {{.ThumbWidth}} / {{.ThumbHeight}};">
 						<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
-						<a href="#" class="lightbox-trigger" data-preview="/media/{{.Filepath | toPreviewPath $.Username | html }}">
-							<img src="/media/{{.Filepath | toThumbPath $.Username}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ThumbWidth}}" height="{{.ThumbHeight}}">
+						<a href="#" class="lightbox-trigger" data-preview="{{.PreviewPath}}">
+							<img src="{{.ThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ThumbWidth}}" height="{{.ThumbHeight}}">
 						</a>
 						<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
 						<div class="dropdown-content">

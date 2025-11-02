@@ -25,6 +25,10 @@ type PhotoMetadata struct {
 	ThumbHeight   int
 	PreviewWidth  int
 	PreviewHeight int
+
+	// Fields populated at runtime, not stored in DB.
+	ThumbPath   string
+	PreviewPath string
 }
 
 // getPhotos retrieves all photos for a user, with an optional year filter.
