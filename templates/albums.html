@@ -1,14 +1,42 @@
 <!DOCTYPE html>
 <html>
 <head>
-	<title>Content</title>
-	<!-- Link to locally hosted fonts -->
+	<title>Albums</title>
 	<link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
 	<link rel="stylesheet" href="/static/css/fonts.css">
-    <link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/albums.css">
 </head>
 <body>
-	<!-- Showing the top application bar which is common for all pages -->
+	<!-- Include the common header -->
 	{{template "header" .}}
+
+	<div class="albums-container">
+		<div class="albums-header">
+			<h1>Your Albums</h1>
+			<button class="add-album-btn">New Album</button>
+		</div>
+
+		{{if .Albums}}
+		<div class="albums-grid">
+			{{range .Albums}}
+			<a href="/albums/{{.ID}}" class="album-card">
+				<div class="album-cover">
+					<img src="{{.CoverPhoto}}" alt="Cover for {{.Name}}">
+				</div>
+				<div class="album-info">
+					<h3>{{.Name}}</h3>
+					<p>{{.PhotoCount}} photos</p>
+				</div>
+			</a>
+			{{end}}
+		</div>
+		{{else}}
+		<div class="no-albums">
+			<p>You haven't created any albums yet.</p>
+			<p>Click "New Album" to get started!</p>
+		</div>
+		{{end}}
+	</div>
 </body>
 </html>

@@ -1,0 +1,80 @@
+.albums-container {
+    margin: 20px 0; /* Vertical margin, no horizontal margin */
+    padding: 0 20px; /* Keep horizontal padding */
+}
+
+.albums-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 10px;
+}
+
+.albums-header h1 {
+    margin: 0;
+    font-size: 2em;
+    color: #333;
+}
+
+.add-album-btn {
+    padding: 10px 20px;
+    font-size: 1em;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.add-album-btn:hover {
+    background-color: #0056b3;
+}
+
+.albums-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.album-card {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: box-shadow 0.2s;
+}
+
+.album-card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.album-cover img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    background-color: #f0f0f0;
+}
+
+.album-info {
+    padding: 15px;
+}
+
+.album-info h3 {
+    margin: 0 0 5px 0;
+}
+
+.album-info p {
+    margin: 0;
+    color: #666;
+    font-size: 0.9em;
+}
+
+.no-albums {
+    text-align: center;
+    padding: 50px;
+    color: #777;
+}
