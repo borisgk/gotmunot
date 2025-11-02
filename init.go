@@ -150,7 +150,7 @@ func init() {
 	}
 
 	// Parse the templates
-	tmpl, err = template.ParseFiles("templates/login.html", "templates/gallery.html", "templates/upload.html")
+	tmpl, err = template.ParseGlob("templates/*.html")
 	if err != nil {
 		log.Fatalf("Error parsing templates: %v", err)
 	}
