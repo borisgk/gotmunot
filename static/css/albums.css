@@ -63,7 +63,21 @@
 .album-cover-empty {
     background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
     /* Ensure it still takes up the same space as covers with images */
-    height: 200px; 
+    height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.add-photos-label {
+    color: #8899a6;
+    font-weight: bold;
+    font-size: 1.1em;
+    padding: 8px 16px;
+    border: 2px dashed #cddde8;
+    border-radius: 8px;
+    background-color: rgba(255, 255, 255, 0.6);
+    transition: all 0.2s;
 }
 
 .album-info {

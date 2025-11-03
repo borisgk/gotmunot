@@ -23,7 +23,9 @@
 			<a href="/albums/{{.ID}}" class="album-card">
 				<div class="album-cover {{if eq .PhotoCount 0}}album-cover-empty{{end}}">
 					{{if ne .PhotoCount 0}}
-					<img src="{{.CoverPhoto}}" alt="Cover for {{.Name}}">
+						<img src="{{.CoverPhoto}}" alt="Cover for {{.Name}}">
+					{{else}}
+						<span class="add-photos-label">Add Photos</span>
 					{{end}}
 				</div>
 				<div class="album-info">
