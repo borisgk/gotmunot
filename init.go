@@ -226,5 +226,34 @@ func openUserDB(dbPath string) (*sql.DB, error) {
 			preview_height INTEGER
 		)
 	`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the albums table.
+	_, err = userDB.Exec(`
+		CREATE TABLE IF NOT EXISTS albums (
+			id INTEGER PRIMARY KEY AUTOINCREMENT,
+			name TEXT NOT NULL,
+			description TEXT,
+			created_at DATETIME NOT NULL,
+			cover_photo_id INTEGER,
+			FOREIGN KEY(cover_photo_id) REFERENCES photos(id) ON DELETE SET NULL
+		)
+	`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the album_photos join table.
+	_, err = userDB.Exec(`
+		CREATE TABLE IF NOT EXISTS album_photos (
+			album_id INTEGER NOT NULL,
+			photo_id INTEGER NOT NULL,
+			PRIMARY KEY (album_id, photo_id),
+			FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE,
+			FOREIGN KEY(photo_id) REFERENCES photos(id) ON DELETE CASCADE
+		)
+	`)
 	return userDB, err
 }
