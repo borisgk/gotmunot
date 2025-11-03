@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"path/filepath"
 	"time"
 )
 
@@ -38,4 +39,53 @@ func createAlbum(userDB *sql.DB, name, description string) (int64, error) {
 	}
 
 	return id, nil
+}
+
+// getAlbumsForUser retrieves all albums for a given user from their database.
+func getAlbumsForUser(userDB *sql.DB, username string) ([]Album, error) {
+	query := `
+		SELECT
+			a.id,
+			a.name,
+			a.description,
+			a.created_at,
+			(SELECT COUNT(*) FROM album_photos ap WHERE ap.album_id = a.id) as photo_count,
+			p.filepath
+		FROM
+			albums a
+		LEFT JOIN
+			photos p ON a.cover_photo_id = p.id
+		ORDER BY
+			a.created_at DESC;
+	`
+	rows, err := userDB.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query for albums: %w", err)
+	}
+	defer rows.Close()
+
+	var albums []Album
+	for rows.Next() {
+		var album Album
+		var coverPhotoPath sql.NullString // Use sql.NullString to handle NULL cover photos
+
+		if err := rows.Scan(&album.ID, &album.Name, &album.Description, &album.CreatedAt, &album.PhotoCount, &coverPhotoPath); err != nil {
+			return nil, fmt.Errorf("failed to scan album row: %w", err)
+		}
+
+		// If a cover photo exists, construct its thumbnail URL. Otherwise, use a placeholder.
+		if coverPhotoPath.Valid && coverPhotoPath.String != "" {
+			album.CoverPhoto = filepath.Join("/media", username, "thumbs", coverPhotoPath.String)
+		} else {
+			album.CoverPhoto = "/static/img/placeholder.png"
+		}
+
+		albums = append(albums, album)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during album rows iteration: %w", err)
+	}
+
+	return albums, nil
 }

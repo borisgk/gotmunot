@@ -60,6 +60,12 @@
     background-color: #f0f0f0;
 }
 
+.album-cover-empty {
+    background: linear-gradient(135deg, #f5f7fa 0%, #e8ecf1 100%);
+    /* Ensure it still takes up the same space as covers with images */
+    height: 200px; 
+}
+
 .album-info {
     padding: 15px;
 }

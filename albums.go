@@ -4,6 +4,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -26,13 +27,18 @@ func albumsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// TODO: Replace with actual database call to fetch albums for the user.
-	// albums, err := getAlbumsForUser(username)
-	// For now, we'll use some placeholder data.
-	albums := []Album{
-		{ID: 1, Name: "Summer Vacation", Description: "Photos from our 2023 summer trip.", PhotoCount: 120, CoverPhoto: "/static/img/placeholder.png", CreatedAt: time.Now()},
-		{ID: 2, Name: "Project Phoenix", Description: "Architectural shots.", PhotoCount: 45, CoverPhoto: "/static/img/placeholder.png", CreatedAt: time.Now().AddDate(0, -1, 0)},
-		{ID: 3, Name: "Landscapes", Description: "Best nature shots.", PhotoCount: 88, CoverPhoto: "/static/img/placeholder.png", CreatedAt: time.Now().AddDate(0, -3, 0)},
+	userDB, err := getUserDB(username)
+	if err != nil {
+		http.Error(w, "Could not access user database.", http.StatusInternalServerError)
+		return
+	}
+
+	// Fetch albums from the database
+	albums, err := getAlbumsForUser(userDB, username)
+	if err != nil {
+		log.Printf("Error fetching albums for user %s: %v", username, err)
+		http.Error(w, "Failed to fetch albums.", http.StatusInternalServerError)
+		return
 	}
 
 	data := struct {
