@@ -1,0 +1,19 @@
+<!-- Additional toolbar to display years with photos count. Years are clickable to filter the photos by year -->
+
+{{define "yearsbar"}}
+
+
+	{{if .Years}}
+	<div class="year-bar">
+		<a href="/gallery" class="year-link">All<sup>{{.AllPhotosCount}}</sup></a>
+		{{range .Years}}
+			{{$year := .}}
+			{{$count := index $.PhotoCounts $year}}
+			<a href="#" class="year-link" data-year="{{$year}}">{{$year}}<sup>{{$count}}</sup></a>
+		{{end}}
+	</div>
+	{{end}}
+
+
+
+{{end}}

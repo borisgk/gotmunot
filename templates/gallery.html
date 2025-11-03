@@ -15,48 +15,11 @@
 	<!-- Showing the top application bar which is common for all pages -->
 	{{template "header" .}}
 
-	{{if .Years}}
-	<div class="year-bar">
-		<a href="/gallery" class="year-link">All<sup>{{.AllPhotosCount}}</sup></a>
-		{{range .Years}}
-			{{$year := .}}
-			{{$count := index $.PhotoCounts $year}}
-			<a href="#" class="year-link" data-year="{{$year}}">{{$year}}<sup>{{$count}}</sup></a>
-		{{end}}
-	</div>
-	{{end}}
+	<!-- Showing the years bar -->
+	 {{template "yearsbar" .}}
 
-	<div id="gallery-container" data-username="{{.Username}}" data-total-photos="{{.TotalPhotos}}" data-filter-year="{{.FilterYear}}">
-		{{if .DayGroups}}
-			{{range .DayGroups}}
-				<div class="date-header">
-					<input type="checkbox" class="day-select-checkbox" title="Select all photos from this day">
-					<h2 class="date-separator" data-date="{{.Date.Format "2006-01-02"}}">
-						{{.Date.Format "Monday, January 2, 2006"}}
-						<span class="photo-count">({{.Count}} photos)</span>
-					</h2>
-				</div>
-				<div class="photo-gallery">
-					{{range .Photos}}
-					<div class="photo-item" data-year="{{.DateTime.Year}}" style="--aspect-ratio: {{.ThumbWidth}} / {{.ThumbHeight}};">
-						<input type="checkbox" class="photo-select-checkbox" data-filename="{{.Filename}}">
-						<a href="#" class="lightbox-trigger" data-preview="{{.PreviewPath}}">
-							<img src="{{.ThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy" width="{{.ThumbWidth}}" height="{{.ThumbHeight}}">
-						</a>
-						<button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
-						<div class="dropdown-content">
-							<a href="#" class="info-btn">Info</a>
-							<a href="#" class="change-date-btn">Change date</a>
-							<a href="#" class="delete-btn">Delete</a>
-						</div>
-					</div>
-					{{end}}
-				</div>
-			{{end}}
-		{{else}}
-			<p style="padding-left: 1em;">No photos have been uploaded yet.</p>
-		{{end}}
-	</div>
+	<!-- Showing the grid with the thumbnails -->
+	{{template "photogrid" .}}
 
 	<!-- The Lightbox Modal -->
 	<div id="lightbox" class="modal">
