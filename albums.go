@@ -3,7 +3,9 @@
 package main
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -46,6 +48,63 @@ func albumsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func createAlbumHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	var payload struct {
+		Name        string `json:"name"`
+		Description string `json:"description"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	payload.Name = strings.TrimSpace(payload.Name)
+	if payload.Name == "" {
+		http.Error(w, "Album name cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	userDB, err := getUserDB(username)
+	if err != nil {
+		http.Error(w, "Could not access user database.", http.StatusInternalServerError)
+		return
+	}
+
+	// Check if an album with this name already exists
+	exists, err := albumExists(userDB, payload.Name)
+	if err != nil {
+		http.Error(w, "Error checking for existing album.", http.StatusInternalServerError)
+		return
+	}
+	if exists {
+		http.Error(w, "An album with this name already exists.", http.StatusConflict)
+		return
+	}
+
+	// Create the album
+	albumID, err := createAlbum(userDB, payload.Name, payload.Description)
+	if err != nil {
+		http.Error(w, "Failed to create album.", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "success", "album_id": albumID})
 }
 
 func newAlbumHandler(w http.ResponseWriter, r *http.Request) {
