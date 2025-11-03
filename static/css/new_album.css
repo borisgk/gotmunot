@@ -1,0 +1,62 @@
+.new-album-container {
+    max-width: 700px;
+    margin: 40px auto;
+    padding: 30px;
+    background-color: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.new-album-container h1 {
+    text-align: center;
+    margin-top: 0;
+    margin-bottom: 30px;
+    font-size: 2em;
+    color: #333;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-weight: bold;
+    color: #555;
+}
+
+.form-group input[type="text"],
+.form-group textarea {
+    width: 100%;
+    padding: 12px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-sizing: border-box; /* Important for padding and width */
+    font-size: 1em;
+    transition: border-color 0.2s;
+}
+
+.form-group input[type="text"]:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: #007bff;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 30px;
+}
+
+.primary-btn {
+    background-color: #007bff;
+    color: white;
+}
+
+.secondary-btn {
+    background-color: #6c757d;
+    color: white;
+}

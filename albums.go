@@ -47,3 +47,18 @@ func albumsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func newAlbumHandler(w http.ResponseWriter, r *http.Request) {
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	data := struct{ Username string }{Username: username}
+
+	if err := tmpl.ExecuteTemplate(w, "new_album.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
