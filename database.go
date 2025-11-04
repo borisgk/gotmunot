@@ -180,11 +180,34 @@ func savePhotoMetadata(p *PhotoMetadata) (int64, error) {
 
 // deletePhotoByFilename deletes a photo's record from the database by its filename.
 func deletePhotoByFilename(userDB *sql.DB, filename string) error {
-	_, err := userDB.Exec("DELETE FROM photos WHERE filename = ?", filename)
+	tx, err := userDB.Begin()
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to begin transaction: %w", err)
 	}
-	return nil
+	defer tx.Rollback() // Rollback on error
+
+	// First, get the photo ID from the filename.
+	var photoID int64
+	err = tx.QueryRow("SELECT id FROM photos WHERE filename = ?", filename).Scan(&photoID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			// If the photo doesn't exist, there's nothing to do.
+			return nil
+		}
+		return fmt.Errorf("failed to find photo ID for filename %s: %w", filename, err)
+	}
+
+	// Delete all associations from the album_photos table.
+	if _, err := tx.Exec("DELETE FROM album_photos WHERE photo_id = ?", photoID); err != nil {
+		return fmt.Errorf("failed to delete from album_photos: %w", err)
+	}
+
+	// Delete the photo from the photos table.
+	if _, err := tx.Exec("DELETE FROM photos WHERE id = ?", photoID); err != nil {
+		return fmt.Errorf("failed to delete from photos: %w", err)
+	}
+
+	return tx.Commit()
 }
 
 // updatePhotoDateAndPath moves a photo's files to a new directory structure based on a new date
