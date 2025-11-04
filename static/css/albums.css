@@ -205,12 +205,15 @@
 .album-dropdown-menu ul {
     list-style: none;
     margin: 0;
-    padding: 5px 0;
+    padding: 0;
 }
 .album-dropdown-menu li {
     padding: 8px 16px;
     cursor: pointer;
     white-space: nowrap;
+}
+.album-dropdown-menu li:hover {
+    background-color: #f0f0f0;
 }
 .album-dropdown-menu li.delete-item {
     color: #d9534f; /* A reddish color for destructive actions */
