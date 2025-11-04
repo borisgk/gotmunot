@@ -6,98 +6,8 @@
 	<link rel="stylesheet" href="/static/css/fonts.css">
 	<link rel="stylesheet" href="/static/css/common.css">
 	<link rel="stylesheet" href="/static/css/albums.css">
-	<style>
-		.album-card {
-			position: relative;
-		}
-		.album-context-menu {
-			position: absolute;
-			top: 8px;
-			right: 8px;
-			font-size: 24px;
-			width: 32px;
-			height: 32px;
-			border-radius: 50%;
-			background-color: rgba(255, 255, 255, 0.8);
-			color: #333;
-			line-height: 0;
-			align-items: center;
-			justify-content: center;
-			display: none;
-		}
-		.album-card:hover .album-context-menu {
-			display: flex;
-		}
-		.album-dropdown-menu {
-			position: absolute;
-			top: 45px;
-			right: 8px;
-			background-color: white;
-			border-radius: 4px;
-			box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-			z-index: 10;
-			display: none; /* Hidden by default */
-		}
-		.album-dropdown-menu ul {
-			list-style: none;
-			margin: 0;
-			padding: 5px 0;
-		}
-		.album-dropdown-menu li {
-			padding: 8px 16px;
-			cursor: pointer;
-			white-space: nowrap;
-		}
-
-		/* Modal Styles */
-		.modal-overlay {
-			position: fixed;
-			top: 0;
-			left: 0;
-			width: 100%;
-			height: 100%;
-			background-color: rgba(0,0,0,0.5);
-			display: none; /* Hidden by default */
-			justify-content: center;
-			align-items: center;
-			z-index: 1000;
-		}
-		.modal-content {
-			background-color: white;
-			padding: 20px;
-			border-radius: 8px;
-			width: 90%;
-			max-width: 500px;
-			box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-		}
-		.modal-content h2 {
-			margin-top: 0;
-		}
-		.modal-content .form-group {
-			margin-bottom: 15px;
-		}
-		.modal-content label {
-			display: block;
-			margin-bottom: 5px;
-		}
-		.modal-content input[type="text"],
-		.modal-content textarea {
-			width: 100%;
-			padding: 8px;
-			border: 1px solid #ccc;
-			border-radius: 4px;
-			box-sizing: border-box;
-		}
-		.modal-buttons {
-			text-align: right;
-			margin-top: 20px;
-		}
-		.modal-buttons button {
-			margin-left: 10px;
-			padding: 8px 16px;
-			border-radius: 4px;
-		}
-	</style>
+	<link rel="stylesheet" href="/static/css/albums_modals.css">
+	<script src="/static/js/albums.js" defer></script>
 </head>
 <body>
 	<!-- Include the common header -->
@@ -119,6 +29,7 @@
 				<div class="album-dropdown-menu">
 					<ul>
 						<li class="rename-album-btn" data-album-id="{{.ID}}" data-album-name="{{.Name}}" data-album-description="{{.Description}}">Rename album...</li>
+						<li class="delete-album-btn delete-item" data-album-id="{{.ID}}">Delete album</li>
 					</ul>
 				</div>
 				<div class="album-cover {{if eq .PhotoCount 0}}album-cover-empty{{end}}">
@@ -165,97 +76,19 @@
 		</div>
 	</div>
 
-	<script>
-		document.addEventListener('DOMContentLoaded', function() {
-			const modal = document.getElementById('renameAlbumModal');
-			const modalForm = document.getElementById('renameAlbumForm');
-			const modalAlbumId = document.getElementById('modalAlbumId');
-			const modalAlbumName = document.getElementById('modalAlbumName');
-			const modalAlbumDescription = document.getElementById('modalAlbumDescription');
-			const cancelBtn = document.getElementById('modalCancelBtn');
-			const okBtn = document.getElementById('modalOkBtn');
+	<!-- Delete Confirmation Modal -->
+	<div id="deleteConfirmModal" class="modal-overlay">
+		<div class="modal-content">
+			<h2>Confirm Deletion</h2>
+			<p>Are you sure you want to delete this album? This action cannot be undone.</p>
+			<p><strong>Note:</strong> The photos within the album will not be deleted from your gallery.</p>
+			<div class="modal-buttons">
+				<button type="button" class="btn-secondary" id="deleteCancelBtn">Cancel</button>
+				<button type="button" class="btn-danger" id="deleteConfirmBtn">Delete</button>
+			</div>
+		</div>
+	</div>
 
-			document.querySelectorAll('.album-card').forEach(card => {
-				const menuIcon = card.querySelector('.album-context-menu');
-				const dropdownMenu = card.querySelector('.album-dropdown-menu');
 
-				menuIcon.addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent navigating to album page
-					event.stopPropagation(); // Stop click from reaching the document listener immediately
-
-					// Hide all other menus before showing this one
-					document.querySelectorAll('.album-dropdown-menu').forEach(menu => {
-						if (menu !== dropdownMenu) {
-							menu.style.display = 'none';
-						}
-					});
-
-					dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
-				});
-			});
-
-			// --- Modal Logic ---
-
-			// Show modal when "Rename album..." is clicked
-			document.querySelectorAll('.rename-album-btn').forEach(btn => {
-				btn.addEventListener('click', function(event) {
-					event.preventDefault(); // Prevent the parent <a> tag from navigating
-					event.stopPropagation(); // Prevent document click listener from firing
-					// Hide the context menu that was just clicked
-					this.closest('.album-dropdown-menu').style.display = 'none';
-
-					const albumId = this.dataset.albumId;
-					const albumName = this.dataset.albumName;
-					const albumDescription = this.dataset.albumDescription;
-
-					// Populate and show the modal
-					modalAlbumId.value = albumId;
-					modalAlbumName.value = albumName;
-					modalAlbumDescription.value = albumDescription;
-					modal.style.display = 'flex';
-				});
-			});
-
-			// Close modal on Cancel, background click
-			function closeModal() {
-				modal.style.display = 'none';
-			}
-			cancelBtn.addEventListener('click', closeModal);
-
-			// Handle form submission (OK button)
-			okBtn.addEventListener('click', function() {
-				// Manually trigger form validation
-				if (!modalForm.checkValidity()) {
-					modalForm.reportValidity();
-					return;
-				}
-
-				const albumId = modalAlbumId.value;
-				const newName = modalAlbumName.value;
-				const newDescription = modalAlbumDescription.value;
-
-				fetch(`/api/album/${albumId}`, {
-					method: 'PATCH',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ name: newName, description: newDescription })
-				}).then(response => {
-					if (!response.ok) throw new Error('Failed to update album');
-					return response.json();
-				}).then(data => {
-					// Update album card on the page
-					const albumCard = document.querySelector(`.album-card[href='/album/${albumId}']`);
-					if (albumCard) {
-						albumCard.querySelector('.album-info h3').textContent = newName;
-						albumCard.querySelector('.rename-album-btn').dataset.albumName = newName;
-						albumCard.querySelector('.rename-album-btn').dataset.albumDescription = newDescription;
-					}
-					closeModal();
-				}).catch(error => console.error('Error:', error));
-			});
-
-			// Hide menu when clicking anywhere else on the page
-			document.addEventListener('click', () => document.querySelectorAll('.album-dropdown-menu').forEach(menu => menu.style.display = 'none'));
-		});
-	</script>
 </body>
 </html>

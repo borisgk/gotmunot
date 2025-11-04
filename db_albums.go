@@ -296,3 +296,31 @@ func updateAlbum(userDB *sql.DB, albumID int64, name, description string) error 
 
 	return nil
 }
+
+// deleteAlbum removes an album and its associations from the database.
+// It does NOT delete the photos themselves.
+func deleteAlbum(userDB *sql.DB, albumID int64) error {
+	tx, err := userDB.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback() // Rollback on error
+
+	// First, delete the associations in album_photos
+	_, err = tx.Exec("DELETE FROM album_photos WHERE album_id = ?", albumID)
+	if err != nil {
+		return fmt.Errorf("failed to delete from album_photos: %w", err)
+	}
+
+	// Then, delete the album itself from the albums table
+	result, err := tx.Exec("DELETE FROM albums WHERE id = ?", albumID)
+	if err != nil {
+		return fmt.Errorf("failed to delete from albums: %w", err)
+	}
+
+	if rows, _ := result.RowsAffected(); rows == 0 {
+		return fmt.Errorf("no album found with ID %d to delete", albumID)
+	}
+
+	return tx.Commit()
+}

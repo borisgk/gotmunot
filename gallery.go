@@ -257,6 +257,21 @@ func albumActionHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		// Return the updated data as confirmation
 		json.NewEncoder(w).Encode(payload)
+	case http.MethodDelete:
+		userDB, err := getUserDB(username)
+		if err != nil {
+			http.Error(w, "Could not access user database", http.StatusInternalServerError)
+			return
+		}
+
+		if err := deleteAlbum(userDB, albumID); err != nil {
+			log.Printf("Error deleting album %d: %v", albumID, err)
+			http.Error(w, "Failed to delete album", http.StatusInternalServerError)
+			return
+		}
+
+		log.Printf("Successfully deleted album %d for user %s", albumID, username)
+		w.WriteHeader(http.StatusNoContent) // 204 No Content
 	default:
 		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
 	}

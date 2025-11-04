@@ -1,0 +1,94 @@
+.album-card {
+    position: relative;
+}
+.album-context-menu {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 24px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.8);
+    color: #333;
+    line-height: 0;
+    align-items: center;
+    justify-content: center;
+    display: none;
+}
+.album-card:hover .album-context-menu {
+    display: flex;
+}
+.album-dropdown-menu {
+    position: absolute;
+    top: 45px;
+    right: 8px;
+    background-color: white;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    z-index: 10;
+    display: none; /* Hidden by default */
+}
+.album-dropdown-menu ul {
+    list-style: none;
+    margin: 0;
+    padding: 5px 0;
+}
+.album-dropdown-menu li {
+    padding: 8px 16px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.album-dropdown-menu li.delete-item {
+    color: #d9534f; /* A reddish color for destructive actions */
+}
+
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+.modal-content {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 500px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+.modal-content h2 {
+    margin-top: 0;
+}
+.modal-content .form-group {
+    margin-bottom: 15px;
+}
+.modal-content label {
+    display: block;
+    margin-bottom: 5px;
+}
+.modal-content input[type="text"],
+.modal-content textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+.modal-buttons {
+    text-align: right;
+    margin-top: 20px;
+}
+.modal-buttons button {
+    margin-left: 10px;
+    padding: 8px 16px;
+    border-radius: 4px;
+}
