@@ -211,6 +211,57 @@ func photoActionHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func albumActionHandler(w http.ResponseWriter, r *http.Request) {
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Extract album ID from URL, e.g., /api/album/123
+	parts := strings.Split(strings.Trim(r.URL.Path, "/"), "/")
+	if len(parts) < 3 {
+		http.Error(w, "Invalid album ID", http.StatusBadRequest)
+		return
+	}
+	albumID, err := strconv.ParseInt(parts[2], 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid album ID format", http.StatusBadRequest)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodPatch:
+		var payload struct {
+			Name        string `json:"name"`
+			Description string `json:"description"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		userDB, err := getUserDB(username)
+		if err != nil {
+			http.Error(w, "Could not access user database", http.StatusInternalServerError)
+			return
+		}
+
+		if err := updateAlbum(userDB, albumID, payload.Name, payload.Description); err != nil {
+			log.Printf("Error updating album %d: %v", albumID, err)
+			http.Error(w, "Failed to update album", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		// Return the updated data as confirmation
+		json.NewEncoder(w).Encode(payload)
+	default:
+		http.Error(w, "Method Not Allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func handleDeletePhoto(w http.ResponseWriter, username, filename string) {
 	// 1. Get photo metadata from DB to find its filepath.
 	err := deletePhoto(username, filename)

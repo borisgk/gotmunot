@@ -42,6 +42,7 @@ func main() {
 	http.HandleFunc("/api/albums/list", getAlbumListHandler)
 	http.HandleFunc("/api/albums/add-photos", addPhotosToAlbumHandler)
 
+	http.HandleFunc("/api/album/", albumActionHandler)
 	// Initialize and start the metadata saving queue and worker.
 	// A buffer of 100 can handle bursts of uploads.
 	photoMetadataQueue = make(chan *PhotoMetadata, 100)

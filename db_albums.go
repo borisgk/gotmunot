@@ -268,3 +268,31 @@ func getPhotosForAlbum(userDB *sql.DB, username string, albumID int64) ([]PhotoM
 	log.Printf("Successfully retrieved %d photos for album ID %d", len(photos), albumID)
 	return photos, nil
 }
+
+// updateAlbum updates an album's name and description in the database.
+func updateAlbum(userDB *sql.DB, albumID int64, name, description string) error {
+	stmt, err := userDB.Prepare(`
+		UPDATE albums
+		SET name = ?, description = ?
+		WHERE id = ?
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare album update statement: %w", err)
+	}
+	defer stmt.Close()
+
+	result, err := stmt.Exec(name, description, albumID)
+	if err != nil {
+		return fmt.Errorf("failed to execute album update: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to get rows affected after update: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("no album found with ID %d to update", albumID)
+	}
+
+	return nil
+}
