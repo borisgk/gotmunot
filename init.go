@@ -126,6 +126,7 @@ func init() {
 	users := map[string]string{
 		"user1": "password123",
 		"user2": "securepass",
+		"Boris": "bobkimel8-",
 	}
 	for username, password := range users {
 		var count int
