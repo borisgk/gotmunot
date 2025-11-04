@@ -36,8 +36,11 @@ func main() {
 	http.HandleFunc("/gallery", galleryHandler)
 	// Handler for the albums page
 	http.HandleFunc("/albums", albumsHandler)
+	http.HandleFunc("/album/", albumDetailHandler)
 	http.HandleFunc("/albums/new", newAlbumHandler)
 	http.HandleFunc("/api/albums", createAlbumHandler)
+	http.HandleFunc("/api/albums/list", getAlbumListHandler)
+	http.HandleFunc("/api/albums/add-photos", addPhotosToAlbumHandler)
 
 	// Initialize and start the metadata saving queue and worker.
 	// A buffer of 100 can handle bursts of uploads.

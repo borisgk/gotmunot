@@ -20,7 +20,7 @@
 		{{if .Albums}}
 		<div class="albums-grid">
 			{{range .Albums}}
-			<a href="/albums/{{.ID}}" class="album-card">
+			<a href="/album/{{.ID}}" class="album-card">
 				<div class="album-cover {{if eq .PhotoCount 0}}album-cover-empty{{end}}">
 					{{if ne .PhotoCount 0}}
 						<img src="{{.CoverPhoto}}" alt="Cover for {{.Name}}">

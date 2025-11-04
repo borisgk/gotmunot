@@ -21,82 +21,8 @@
 	<!-- Showing the grid with the thumbnails -->
 	{{template "photogrid" .}}
 
-	<!-- The Lightbox Modal -->
-	<div id="lightbox" class="modal">
-		<span class="close">&times;</span>
-		<img class="modal-content" id="lightbox-img">
-	</div>
-
-	<!-- The Info Modal -->
-	<div id="info-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<div id="info-modal-body"></div>
-		</div>
-	</div>
-
-	<!-- The Change Date Modal -->
-	<div id="change-date-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<h3>Change Photo Date</h3>
-			<p>Current date: <strong id="current-date-display"></strong></p>
-			<form id="change-date-form">
-				<input type="hidden" id="change-date-filename">
-				<label for="new-date-input">New date and time:</label>
-				<input type="datetime-local" id="new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
-				<div style="margin-top: 1.5em; text-align: right;">
-					<button type="button" id="change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
-					<button type="submit" id="change-date-ok-btn">OK</button>
-				</div>
-			</form>
-		</div>
-	</div>
-
-	<!-- The Batch Change Date Modal -->
-	<div id="batch-change-date-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<h3>Batch Change Date</h3>
-			<p>Set the starting date and time for the first selected photo. Each subsequent photo's time will be incremented by one minute.</p>
-			<form id="batch-change-date-form">
-				<label for="batch-new-date-input">New starting date and time:</label>
-				<input type="datetime-local" id="batch-new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
-				<div style="margin-top: 1.5em; text-align: right;">
-					<button type="button" id="batch-change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
-					<button type="submit" id="batch-change-date-ok-btn">OK</button>
-				</div>
-			</form>
-		</div>
-	</div>
-
-	<!-- The Progress Modal -->
-	<div id="progress-modal" class="info-modal">
-		<div class="info-modal-content">
-			<h3 id="progress-title">Processing...</h3>
-			<p id="progress-text"></p>
-			<div class="progress-bar-container">
-				<div id="progress-bar" class="progress-bar"></div>
-			</div>
-			<button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
-		</div>
-	</div>
-
-	<!-- The Login Modal -->
-	<div id="login-modal" class="info-modal">
-		<div class="info-modal-content">
-			<h3>Session Expired</h3>
-			<p>Your session has expired. Please log in again to continue.</p>
-			<form id="modal-login-form">
-				<label for="modal-username">Username:</label><br>
-				<input type="text" id="modal-username" name="username" required><br>
-				<label for="modal-password">Password:</label><br>
-				<input type="password" id="modal-password" name="password" required><br><br>
-				<input type="submit" value="Login">
-			</form>
-			<p id="login-modal-error" style="color: red;"></p>
-		</div>
-	</div>
+	<!-- Include all modals -->
+	{{template "gallery_modals"}}
 
 	{{if .ShowPreview}}
 	<script>

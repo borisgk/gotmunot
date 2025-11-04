@@ -121,6 +121,79 @@ document.addEventListener('DOMContentLoaded', (event) => {
         batchChangeDateModal.style.display = 'block';
     });
 
+    /* --- Add to Album Modal Logic --- */
+    const addToAlbumModal = document.getElementById('add-to-album-modal');
+    if (addToAlbumModal) {
+        const closeBtn = addToAlbumModal.querySelector('.close');
+        const cancelBtn = document.getElementById('add-to-album-cancel-btn');
+        const form = document.getElementById('add-to-album-form');
+        const albumSelect = document.getElementById('album-select');
+
+        const closeAddToAlbumModal = () => {
+            addToAlbumModal.style.display = 'none';
+        };
+
+        closeBtn.onclick = closeAddToAlbumModal;
+        cancelBtn.onclick = closeAddToAlbumModal;
+
+        // The form submission logic will be added in a future step.
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const selectedAlbumId = albumSelect.value;
+            const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
+            const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
+
+            if (!selectedAlbumId || filenames.length === 0) {
+                alert('Please select an album and at least one photo.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/albums/add-photos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        album_id: parseInt(selectedAlbumId, 10),
+                        filenames: filenames,
+                    }),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to add photos to album.');
+                }
+
+                const result = await response.json();
+                alert(`${result.photos_added} new photo(s) added to the album.`);
+                closeAddToAlbumModal();
+                document.getElementById('clear-selection-btn').click(); // Clear selection
+            } catch (error) {
+                alert(`Error: ${error.message}`);
+            }
+        });
+
+        document.getElementById('add-selected-to-album-btn').addEventListener('click', async (e) => {
+            e.preventDefault();
+            document.getElementById('selection-dropdown').classList.remove('show');
+            const selectedCount = document.querySelectorAll('.photo-select-checkbox:checked').length;
+            if (selectedCount === 0) {
+                alert('Please select photos first.');
+                return;
+            }
+
+            // Fetch the list of albums and populate the select dropdown
+            try {
+                const response = await fetch('/api/albums/list');
+                if (!response.ok) throw new Error('Failed to fetch albums.');
+                const albums = await response.json();
+                albumSelect.innerHTML = albums.map(album => `<option value="${album.id}">${album.name}</option>`).join('');
+                addToAlbumModal.style.display = 'block';
+            } catch (error) {
+                alert(error.message);
+            }
+        });
+    }
+
     async function showProgressModalForBatchDateChange(filenames, startDate) {
         const progressModal = document.getElementById('progress-modal');
         const progressTitle = document.getElementById('progress-title');

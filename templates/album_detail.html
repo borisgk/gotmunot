@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>{{.Album.Name}} - Album</title>
+	<link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
+	<link rel="stylesheet" href="/static/css/fonts.css">
+	<link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/gallery.css">
+	<link rel="stylesheet" href="/static/css/albums.css">
+	<script src="/static/js/gallery.js"></script>
+</head>
+<body>
+	<!-- Include the common header -->
+	{{template "header" .}}
+
+	<div class="albums-container">
+		<div class="album-detail-header">
+			<h1>{{.Album.Name}}</h1>
+			{{if .Album.Description}}
+				<p class="album-description">{{.Album.Description}}</p>
+			{{end}}
+		</div>
+
+		<!-- Reuse the photo grid template from the gallery -->
+		{{template "photogrid" .}}
+	</div>
+
+	<!-- Include all modals from the gallery page for consistency -->
+	{{template "gallery_modals"}}
+
+</body>
+</html>
