@@ -230,7 +230,7 @@
     align-items: center;
     z-index: 1000;
 }
-.modal-content {
+.modal-overlay .modal-content {
     background-color: white;
     padding: 20px;
     border-radius: 8px;
@@ -238,17 +238,17 @@
     max-width: 500px;
     box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
-.modal-content h2 {
+.modal-overlay .modal-content h2 {
     margin-top: 0;
 }
-.modal-content .form-group {
+.modal-overlay .modal-content .form-group {
     margin-bottom: 15px;
 }
-.modal-content label {
+.modal-overlay .modal-content label {
     display: block;
     margin-bottom: 5px;
 }
-.modal-buttons {
+.modal-overlay .modal-buttons {
     text-align: right;
     margin-top: 20px;
 }
