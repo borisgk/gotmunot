@@ -1,6 +1,3 @@
-body {
-    padding-top: 100px; /* Adjust padding for main nav + year bar */
-}
 .photo-gallery {
     display: flex;
     flex-wrap: wrap;

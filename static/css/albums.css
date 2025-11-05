@@ -1,6 +1,6 @@
 .albums-container {
-    margin: 20px 0; /* Vertical margin, no horizontal margin */
-    padding: 0 20px; /* Keep horizontal padding */
+    margin: 20px;
+    padding: 0;
 }
 
 .albums-header {
@@ -12,10 +12,18 @@
     padding-bottom: 10px;
 }
 
+/* On the album detail page, remove the container's margin and padding */
+.albums-container:has(.album-detail-header) {
+    margin: 0;
+    padding: 0;
+}
+
 .album-detail-header {
     margin-bottom: 20px;
     border-bottom: 1px solid #ddd;
+    margin-top: 0; /* Override the container's top margin */
     padding-bottom: 10px;
+    padding-left: 32px;
 }
 
 .album-description {
