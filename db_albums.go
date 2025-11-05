@@ -215,7 +215,9 @@ func getPhotosForAlbum(userDB *sql.DB, username string, albumID int64) ([]PhotoM
 			p.uploaded_at,
 			p.date_time,
 			p.image_width,
-			p.image_length
+			p.image_length,
+			p.thumb_width,
+			p.thumb_height
 		FROM
 			photos p
 		JOIN
@@ -236,11 +238,14 @@ func getPhotosForAlbum(userDB *sql.DB, username string, albumID int64) ([]PhotoM
 	for rows.Next() {
 		var p PhotoMetadata
 		var dt sql.NullTime
+		var thumbWidth, thumbHeight sql.NullInt64
 
 		err := rows.Scan(&p.ID, &p.Filename, &p.Filepath, &p.UploadedAt,
 			&dt,
 			&p.ImageWidth,
 			&p.ImageLength,
+			&thumbWidth,
+			&thumbHeight,
 		)
 		if err != nil {
 			log.Printf("ERROR: Failed to scan photo row for album %d: %v", albumID, err)
@@ -252,6 +257,9 @@ func getPhotosForAlbum(userDB *sql.DB, username string, albumID int64) ([]PhotoM
 		} else {
 			p.DateTime = p.UploadedAt
 		}
+
+		p.ThumbWidth = int(thumbWidth.Int64)
+		p.ThumbHeight = int(thumbHeight.Int64)
 
 		// Pre-calculate paths for the template.
 		p.ThumbPath = filepath.Join("/media", username, "thumbs", p.Filepath)
