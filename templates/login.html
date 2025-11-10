@@ -4,97 +4,48 @@
     <meta charset="UTF-8">
     <title>Login</title>
     <link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!--Import materialize.css-->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@materializecss/materialize@2.2.2/dist/css/materialize.min.css">
+
+    <!--Let browser know website is optimized for mobile-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <style>
-        :root {
-            --primary-color: #007bff;
-            --background-color: #f4f7f6;
-            --form-background: #ffffff;
-            --text-color: #333;
-            --border-color: #ddd;
-            --input-focus-border: #007bff;
-        }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            background-color: var(--background-color);
-            color: var(--text-color);
-            margin: 0;
             display: flex;
-            justify-content: center;
-            align-items: center;
             min-height: 100vh;
+            flex-direction: column;
+            background-color: #f4f4f4;
         }
-        .login-container {
-            background-color: var(--form-background);
-            padding: 2rem;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-            box-sizing: border-box;
+        main {
+            flex: 1 0 auto;
+            display: flex;
+            align-items: center;
         }
-        h1 {
-            text-align: center;
-            margin-top: 0;
+        form .input-field {
             margin-bottom: 1.5rem;
-            font-size: 1.8rem;
-            color: var(--text-color);
-        }
-        .form-group {
-            margin-bottom: 1.5rem;
-        }
-        label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-        input[type="text"],
-        input[type="password"] {
-            width: 100%;
-            padding: 0.75rem;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-            box-sizing: border-box;
-            font-size: 1rem;
-        }
-        input[type="text"]:focus,
-        input[type="password"]:focus {
-            outline: none;
-            border-color: var(--input-focus-border);
-            box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
-        }
-        input[type="submit"] {
-            width: 100%;
-            padding: 0.75rem;
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        input[type="submit"]:hover {
-            background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h1>Tmunot Login</h1>
-        <form method="POST" action="/login">
-            <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
-            <div class="form-group">
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" required>
+    <main>
+        <div class="container">
+            <div class="row">
+                <div class="col s12 m8 offset-m2 l6 offset-l3">
+                    <div class="card-panel z-depth-2">
+                        <h4 class="center-align">Tmunot Login</h4>
+                        <form method="POST" action="/login">
+                            <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
+                            <div class="input-field"><i class="material-icons prefix">account_circle</i><input id="username" name="username" type="text" class="validate" required><label for="username">Username</label></div>
+                            <div class="input-field"><i class="material-icons prefix">lock</i><input id="password" name="password" type="password" class="validate" required><label for="password">Password</label></div>
+                            <div class="center-align"><button class="btn waves-effect waves-light" type="submit">Login</button></div>
+                        </form>
+                    </div>
+                </div>
             </div>
-            <div class="form-group">
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" required>
-            </div>
-            <input type="submit" value="Login">
-        </form>
-    </div>
+        </div>
+    </main>
+    <script src="https://cdn.jsdelivr.net/npm/@materializecss/materialize@2.2.2/dist/js/materialize.min.js"></script>
 </body>
 </html>
