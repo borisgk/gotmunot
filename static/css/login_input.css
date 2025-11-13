@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+:root {
+            /* M3 System Colors (Light Theme) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-container: #F3EDF7;
+            
+            /* M3 State Layers */
+            --md-sys-state-hover-opacity: 0.08;
+            --md-sys-state-focus-opacity: 0.12;
+            --md-sys-state-pressed-opacity: 0.12;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* --- M3 Card Container --- */
+        .login-card {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 12px; /* M3 Medium Card radius */
+            padding: 24px;
+            width: 100%;
+            max-width: 360px; /* Standard mobile width constraint */
+            box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+        }
+
+        .headline {
+            color: var(--md-sys-color-on-surface);
+            font-size: 24px;
+            line-height: 32px;
+            font-weight: 400;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        /* --- M3 Outlined Text Field Specs --- */
+        .text-field {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        /* The Input Element */
+        .text-field input {
+            width: 100%;
+            height: 56px; /* M3 Spec Height */
+            padding: 0 16px;
+            font-size: 16px; /* Body Large */
+            color: var(--md-sys-color-on-surface);
+            background: transparent;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px; /* M3 Small shape */
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s, border-width 0.1s;
+            caret-color: var(--md-sys-color-primary);
+        }
+
+        /* Focus State: 2px stroke, Primary color */
+        .text-field input:focus {
+            border: 2px solid var(--md-sys-color-primary);
+            padding-left: 15px; /* Adjust padding to prevent layout shift from border width change (1px -> 2px) */
+            padding-right: 15px;
+        }
+
+        /* Fix for Chrome/Webkit Autofill Blue Background */
+        .text-field input:-webkit-autofill,
+        .text-field input:-webkit-autofill:hover, 
+        .text-field input:-webkit-autofill:focus, 
+        .text-field input:-webkit-autofill:active {
+            /* MASK the browser default background with an inset shadow matching the card color */
+            -webkit-box-shadow: 0 0 0 30px var(--md-sys-color-surface-container) inset !important;
+            /* Ensure text color remains consistent */
+            -webkit-text-fill-color: var(--md-sys-color-on-surface) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* Error State (Optional styling hook) */
+        .text-field input.error {
+            border-color: #B3261E;
+        }
+
+        /* Floating Label */
+        .text-field label {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--md-sys-color-surface-container); /* Matches card bg to hide border behind label */
+            padding: 0 4px;
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 16px;
+            pointer-events: none;
+            transition: top 0.2s, font-size 0.2s, color 0.2s, transform 0.2s;
+        }
+
+        /* Floating Logic: Move label up on focus or when value exists */
+        .text-field input:focus ~ label,
+        .text-field input:not(:placeholder-shown) ~ label {
+            top: 0;
+            font-size: 12px; /* Body Small */
+            color: var(--md-sys-color-primary);
+            margin-left: -4px; /* Adjust for padding offset */
+        }
+
+        /* Keep label normal color if not focused but has text */
+        .text-field input:not(:placeholder-shown):not(:focus) ~ label {
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* --- M3 Filled Button Specs --- */
+        .m3-button {
+            position: relative;
+            overflow: hidden; /* For ripple */
+            width: 100%;
+            height: 40px; /* M3 Spec Height */
+            border-radius: 20px; /* Full pill shape */
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px; /* Label Large */
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15); /* Elevation 1 */
+            transition: box-shadow 0.2s, background-color 0.2s;
+        }
+
+        /* Hover State Layer */
+        .m3-button:hover {
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15); /* Elevation 2 */
+        }
+        
+        .m3-button::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-sys-color-on-primary);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .m3-button:hover::after {
+            opacity: var(--md-sys-state-hover-opacity);
+        }
+
+        .m3-button:active::after {
+            opacity: var(--md-sys-state-pressed-opacity);
+        }
+
+        /* Ripple Element */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 600ms linear;
+            background-color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
