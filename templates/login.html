@@ -2,50 +2,276 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Login</title>
-    <link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
-    <!--Import Google Icon Font-->
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <!--Import materialize.css-->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@materializecss/materialize@2.2.2/dist/css/materialize.min.css">
-
-    <!--Let browser know website is optimized for mobile-->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
+    <title>Tmunot Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Tailwind is used strictly for layout utilities as requested, custom CSS handles M3 specs -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
     <style>
-        body {
-            display: flex;
-            min-height: 100vh;
-            flex-direction: column;
-            background-color: #f4f4f4;
+        :root {
+            /* M3 System Colors (Light Theme) */
+            --md-sys-color-primary: #6750A4;
+            --md-sys-color-on-primary: #FFFFFF;
+            --md-sys-color-primary-container: #EADDFF;
+            --md-sys-color-on-primary-container: #21005D;
+            --md-sys-color-outline: #79747E;
+            --md-sys-color-on-surface: #1D1B20;
+            --md-sys-color-on-surface-variant: #49454F;
+            --md-sys-color-surface: #FEF7FF;
+            --md-sys-color-surface-container: #F3EDF7;
+            
+            /* M3 State Layers */
+            --md-sys-state-hover-opacity: 0.08;
+            --md-sys-state-focus-opacity: 0.12;
+            --md-sys-state-pressed-opacity: 0.12;
         }
-        main {
-            flex: 1 0 auto;
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--md-sys-color-surface);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        /* --- M3 Card Container --- */
+        .login-card {
+            background-color: var(--md-sys-color-surface-container);
+            border-radius: 12px; /* M3 Medium Card radius */
+            padding: 24px;
+            width: 100%;
+            max-width: 360px; /* Standard mobile width constraint */
+            box-shadow: 0px 1px 3px 1px rgba(0, 0, 0, 0.15), 0px 1px 2px 0px rgba(0, 0, 0, 0.3);
+        }
+
+        .headline {
+            color: var(--md-sys-color-on-surface);
+            font-size: 24px;
+            line-height: 32px;
+            font-weight: 400;
+            margin-bottom: 32px;
+            text-align: center;
+        }
+
+        /* --- M3 Outlined Text Field Specs --- */
+        .text-field {
+            position: relative;
+            margin-bottom: 24px;
+        }
+
+        /* The Input Element */
+        .text-field input {
+            width: 100%;
+            height: 56px; /* M3 Spec Height */
+            padding: 0 16px;
+            font-size: 16px; /* Body Large */
+            color: var(--md-sys-color-on-surface);
+            background: transparent;
+            border: 1px solid var(--md-sys-color-outline);
+            border-radius: 4px; /* M3 Small shape */
+            outline: none;
+            box-sizing: border-box;
+            transition: border-color 0.2s, border-width 0.1s;
+            caret-color: var(--md-sys-color-primary);
+        }
+
+        /* Focus State: 2px stroke, Primary color */
+        .text-field input:focus {
+            border: 2px solid var(--md-sys-color-primary);
+            padding-left: 15px; /* Adjust padding to prevent layout shift from border width change (1px -> 2px) */
+            padding-right: 15px;
+        }
+
+        /* Fix for Chrome/Webkit Autofill Blue Background */
+        .text-field input:-webkit-autofill,
+        .text-field input:-webkit-autofill:hover, 
+        .text-field input:-webkit-autofill:focus, 
+        .text-field input:-webkit-autofill:active {
+            /* MASK the browser default background with an inset shadow matching the card color */
+            -webkit-box-shadow: 0 0 0 30px var(--md-sys-color-surface-container) inset !important;
+            /* Ensure text color remains consistent */
+            -webkit-text-fill-color: var(--md-sys-color-on-surface) !important;
+            transition: background-color 5000s ease-in-out 0s;
+        }
+
+        /* Error State (Optional styling hook) */
+        .text-field input.error {
+            border-color: #B3261E;
+        }
+
+        /* Floating Label */
+        .text-field label {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: var(--md-sys-color-surface-container); /* Matches card bg to hide border behind label */
+            padding: 0 4px;
+            color: var(--md-sys-color-on-surface-variant);
+            font-size: 16px;
+            pointer-events: none;
+            transition: top 0.2s, font-size 0.2s, color 0.2s, transform 0.2s;
+        }
+
+        /* Floating Logic: Move label up on focus or when value exists */
+        .text-field input:focus ~ label,
+        .text-field input:not(:placeholder-shown) ~ label {
+            top: 0;
+            font-size: 12px; /* Body Small */
+            color: var(--md-sys-color-primary);
+            margin-left: -4px; /* Adjust for padding offset */
+        }
+
+        /* Keep label normal color if not focused but has text */
+        .text-field input:not(:placeholder-shown):not(:focus) ~ label {
+            color: var(--md-sys-color-on-surface-variant);
+        }
+
+        /* --- M3 Filled Button Specs --- */
+        .m3-button {
+            position: relative;
+            overflow: hidden; /* For ripple */
+            width: 100%;
+            height: 40px; /* M3 Spec Height */
+            border-radius: 20px; /* Full pill shape */
+            background-color: var(--md-sys-color-primary);
+            color: var(--md-sys-color-on-primary);
+            border: none;
+            font-family: 'Roboto', sans-serif;
+            font-size: 14px; /* Label Large */
+            font-weight: 500;
+            letter-spacing: 0.1px;
+            cursor: pointer;
             display: flex;
             align-items: center;
+            justify-content: center;
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.3), 0px 1px 3px 1px rgba(0,0,0,0.15); /* Elevation 1 */
+            transition: box-shadow 0.2s, background-color 0.2s;
         }
-        form .input-field {
-            margin-bottom: 1.5rem;
+
+        /* Hover State Layer */
+        .m3-button:hover {
+            box-shadow: 0px 1px 2px rgba(0,0,0,0.3), 0px 2px 6px 2px rgba(0,0,0,0.15); /* Elevation 2 */
         }
+        
+        .m3-button::after {
+            content: "";
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--md-sys-color-on-primary);
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .m3-button:hover::after {
+            opacity: var(--md-sys-state-hover-opacity);
+        }
+
+        .m3-button:active::after {
+            opacity: var(--md-sys-state-pressed-opacity);
+        }
+
+        /* Ripple Element */
+        .ripple {
+            position: absolute;
+            border-radius: 50%;
+            transform: scale(0);
+            animation: ripple 600ms linear;
+            background-color: rgba(255, 255, 255, 0.3);
+            pointer-events: none;
+        }
+
+        @keyframes ripple {
+            to {
+                transform: scale(4);
+                opacity: 0;
+            }
+        }
+
     </style>
 </head>
+
+
 <body>
-    <main>
-        <div class="container">
-            <div class="row">
-                <div class="col s12 m8 offset-m2 l6 offset-l3">
-                    <div class="card-panel z-depth-2">
-                        <h4 class="center-align">Tmunot Login</h4>
-                        <form method="POST" action="/login">
-                            <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
-                            <div class="input-field"><i class="material-icons prefix">account_circle</i><input id="username" name="username" type="text" class="validate" required><label for="username">Username</label></div>
-                            <div class="input-field"><i class="material-icons prefix">lock</i><input id="password" name="password" type="password" class="validate" required><label for="password">Password</label></div>
-                            <div class="center-align"><button class="btn waves-effect waves-light" type="submit">Login</button></div>
-                        </form>
-                    </div>
-                </div>
+
+    <div class="login-card">
+        <h1 class="headline">Tmunot Login</h1>
+        
+        <form id="loginForm" method="POST" action="/login">
+
+            <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
+
+            <!-- Username Field -->
+            <div class="text-field">
+                <!-- Placeholder space required for CSS selector trick -->
+                <input type="text" id="username" name="username" placeholder=" " required autocomplete="off">
+                <label for="username">Username</label>
             </div>
-        </div>
-    </main>
-    <script src="https://cdn.jsdelivr.net/npm/@materializecss/materialize@2.2.2/dist/js/materialize.min.js"></script>
+
+            <!-- Password Field -->
+            <div class="text-field">
+                <input type="password" id="password" name="password" placeholder=" " required>
+                <label for="password">Password</label>
+            </div>
+
+            <!-- Login Button -->
+            <button type="submit" class="m3-button" id="loginBtn">
+                Login
+            </button>
+        </form>
+    </div>
+
+    <script>
+        // --- Ripple Effect Logic ---
+        function createRipple(event) {
+            const button = event.currentTarget;
+            
+            const circle = document.createElement("span");
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            const rect = button.getBoundingClientRect();
+            
+            circle.style.width = circle.style.height = `${diameter}px`;
+            circle.style.left = `${event.clientX - rect.left - radius}px`;
+            circle.style.top = `${event.clientY - rect.top - radius}px`;
+            circle.classList.add("ripple");
+
+            const ripple = button.getElementsByClassName("ripple")[0];
+            if (ripple) {
+                ripple.remove();
+            }
+
+            button.appendChild(circle);
+        }
+
+        const buttons = document.getElementsByTagName("button");
+        for (const button of buttons) {
+            button.addEventListener("mousedown", createRipple);
+        }
+
+        // --- Login Handler (Mock) ---
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('username').value;
+            
+            // Visual feedback that something is happening
+            const btn = document.getElementById('loginBtn');
+            const originalText = btn.innerText;
+            
+            btn.innerText = "Signing in...";
+            
+            // Simulate API call delay
+            setTimeout(() => {
+                alert(`Login Attempted:\nUsername: ${username}`);
+                btn.innerText = originalText;
+            }, 600);
+        }
+    </script>
 </body>
 </html>
