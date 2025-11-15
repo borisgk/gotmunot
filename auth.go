@@ -34,14 +34,17 @@ func checkPasswordHash(password, hash string) bool {
 	return err == nil
 }
 
+type loginPageData struct {
+	RedirectURL string
+	Error       string
+}
+
 func loginHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		// Display the login form
 		redirectURL := r.URL.Query().Get("redirect_url")
-		data := struct {
-			RedirectURL string
-		}{RedirectURL: redirectURL}
+		data := loginPageData{RedirectURL: redirectURL}
 		err := tmpl.ExecuteTemplate(w, "login.html", data)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -51,13 +54,23 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		r.ParseForm()
 		username := r.FormValue("username")
 		password := r.FormValue("password")
+		redirectURL := r.FormValue("redirect_url")
+
+		renderLoginWithError := func(msg string) {
+			w.WriteHeader(http.StatusUnauthorized)
+			data := loginPageData{
+				RedirectURL: redirectURL,
+				Error:       msg,
+			}
+			tmpl.ExecuteTemplate(w, "login.html", data)
+		}
 
 		// Retrieve user from the database.
 		var user User
 		err := db.QueryRow("SELECT id, uuid, username, password, db_path FROM users WHERE username = ?", username).Scan(&user.ID, &user.UUID, &user.Username, &user.Password, &user.DBPath)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				http.Error(w, "Invalid username or password - please try again", http.StatusUnauthorized)
+				renderLoginWithError("Invalid username or password - please try again")
 			} else {
 				http.Error(w, "Internal server error", http.StatusInternalServerError)
 			}
@@ -66,7 +79,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 
 		// Check the password.
 		if !checkPasswordHash(password, user.Password) {
-			http.Error(w, "Invalid username or password", http.StatusUnauthorized)
+			renderLoginWithError("Invalid username or password - please try again")
 			return
 		}
 
@@ -87,7 +100,6 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 		})
 
 		// After successful login, check if there's a redirect URL.
-		redirectURL := r.FormValue("redirect_url")
 		if redirectURL != "" {
 			http.Redirect(w, r, redirectURL, http.StatusSeeOther)
 		} else {

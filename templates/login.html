@@ -20,6 +20,10 @@
     <div class="login-card">
         <h1 class="headline">Tmunot Login</h1>
         
+        {{if .Error}}
+            <p style="color: #B00020; text-align: center; margin-bottom: 1em;">{{.Error}}</p>
+        {{end}}
+
         <form id="loginForm" method="POST" action="/login">
 
             <input type="hidden" name="redirect_url" value="{{.RedirectURL}}">
