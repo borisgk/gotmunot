@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
     <title>Tmunot Login</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/fonts.css">
     
     <!-- Tailwind is used strictly for layout utilities as requested, custom CSS handles M3 specs -->
     <!-- <script src="https://cdn.tailwindcss.com"></script> -->
@@ -27,13 +27,13 @@
             <!-- Username Field -->
             <div class="text-field">
                 <!-- Placeholder space required for CSS selector trick -->
-                <input type="text" id="username" name="username" placeholder=" " required autocomplete="on">
+                <input type="text" id="username" name="username" placeholder=" " required autocomplete="username">
                 <label for="username">Username</label>
             </div>
 
             <!-- Password Field -->
             <div class="text-field">
-                <input type="password" id="password" name="password" placeholder=" " required>
+                <input type="password" id="password" name="password" placeholder=" " required autocomplete="current-password">
                 <label for="password">Password</label>
             </div>
 
@@ -43,53 +43,7 @@
             </button>
         </form>
     </div>
-
-    <script>
-        // --- Ripple Effect Logic ---
-        function createRipple(event) {
-            const button = event.currentTarget;
-            
-            const circle = document.createElement("span");
-            const diameter = Math.max(button.clientWidth, button.clientHeight);
-            const radius = diameter / 2;
-
-            const rect = button.getBoundingClientRect();
-            
-            circle.style.width = circle.style.height = `${diameter}px`;
-            circle.style.left = `${event.clientX - rect.left - radius}px`;
-            circle.style.top = `${event.clientY - rect.top - radius}px`;
-            circle.classList.add("ripple");
-
-            const ripple = button.getElementsByClassName("ripple")[0];
-            if (ripple) {
-                ripple.remove();
-            }
-
-            button.appendChild(circle);
-        }
-
-        const buttons = document.getElementsByTagName("button");
-        for (const button of buttons) {
-            button.addEventListener("mousedown", createRipple);
-        }
-
-        // --- Login Handler (Mock) ---
-        function handleLogin(event) {
-            event.preventDefault();
-            const username = document.getElementById('username').value;
-            
-            // Visual feedback that something is happening
-            const btn = document.getElementById('loginBtn');
-            const originalText = btn.innerText;
-            
-            btn.innerText = "Signing in...";
-            
-            // Simulate API call delay
-            setTimeout(() => {
-                alert(`Login Attempted:\nUsername: ${username}`);
-                btn.innerText = originalText;
-            }, 600);
-        }
-    </script>
+    
+    <script src="/static/js/login.js" defer></script>
 </body>
 </html>

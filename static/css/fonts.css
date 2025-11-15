@@ -1,18 +1,22 @@
-/* open-sans-regular - latin */
+/*
+ * This file defines the locally-hosted fonts for the application.
+ * Font files should be placed in the /static/fonts/ directory.
+ */
+
+/* Roboto Regular - 400 */
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 400;
-  src: url('../fonts/open-sans-v44-latin-regular.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-  font-display: swap;
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+    src: url('/static/fonts/Roboto-Regular.woff2') format('woff2');
 }
-/* open-sans-700 - latin */
+
+/* Roboto Medium - 500 */
 @font-face {
-  font-display: swap; /* Check https://developer.mozilla.org/en-US/docs/Web/CSS/@font-face/font-display for other options. */
-  font-family: 'Open Sans';
-  font-style: normal;
-  font-weight: 700;
-  src: url('../fonts/open-sans-v44-latin-700.woff2') format('woff2'); /* Chrome 36+, Opera 23+, Firefox 39+, Safari 12+, iOS 10+ */
-  font-display: swap;
+    font-family: 'Roboto';
+    font-style: normal;
+    font-weight: 500;
+    font-display: swap;
+    src: url('/static/fonts/Roboto-Medium.woff2') format('woff2');
 }
