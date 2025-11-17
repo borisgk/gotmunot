@@ -16,19 +16,19 @@
 	<script src="/static/js/task-poller.js"></script>
 	<script src="/static/js/gallery.js" defer></script>
 </head> 
-<body style="padding-top: 80px; padding-left: 0;">
+<body>
 	<!-- Showing the top application bar which is common for all pages -->
 	{{template "header" .}}
 
 	<!-- Show the navigation rail -->
 	{{template "nav_rail" .}}
 
-	<!-- Showing the years bar -->
-	 {{/* {{template "yearsbar" .}} */}}
+	{{template "yearsbar" .}}
 
-	<!-- Showing the grid with the thumbnails -->
-	{{template "photogrid" .}}
-
+	<div class="main-content">
+		<!-- Showing the grid with the thumbnails -->
+		{{template "photogrid" .}}
+	</div>
 	<!-- Include all modals -->
 	{{template "gallery_modals"}}
 

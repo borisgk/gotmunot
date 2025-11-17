@@ -1,38 +1,15 @@
 body {
     font-family: 'Roboto', sans-serif;
     margin: 0; /* Reset default body margin */
-    padding-top: 50px; /* Adjust padding for main nav */
+    padding-top: 106px; /* Space for 64px app bar + 42px year bar */
 
 }
 
-/* Navigation Bar Styles */
-.top-nav {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #dee2e6;
-    position: fixed; /* Fix it to the top */
-    top: 0;
-    width: 100%;
-    z-index: 999;
-    display: flex; /* Use flexbox for alignment */
-    align-items: center; /* Vertically center items */
-}
-.top-nav a {
-    color: #343a40;
-    text-align: center;
-    padding: 14px 16px;
-    text-decoration: none;
-    font-size: 17px;
-}
-.top-nav a:hover {
-    background-color: #e9ecef;
-    color: #0056b3;
-}
-.top-nav .logo {
-    height: 30px; /* Adjust height as needed */
-    margin: 0 10px 0 15px; /* Add some spacing */
-}
-.top-nav-right {
-    margin-left: auto; /* Push the right-aligned items to the end */
+/* App Bar Title Style */
+.app-bar-title {
+    font-size: 22px; /* M3 Title Large */
+    font-weight: 400;
+    padding-left: 16px;
 }
 
 /* Selection Action Bar Styles */
@@ -47,11 +24,44 @@ body {
 .selection-action-bar .dropdown-content {
     display: none; /* Controlled by .show class */
     position: absolute;
-    top: 50px; /* Position below the nav bar */
+    top: 64px; /* Position below the 64px app bar */
     left: 0;
     background-color: #f1f1f1;
     min-width: 160px;
     box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
     z-index: 1000; /* Ensure it's above gallery content */
     border-radius: 4px;
+}
+
+/* Main Content Wrapper */
+.main-content {
+    position: relative; /* Create a stacking context */
+    z-index: 0;         /* Establish it as the base layer */
+}
+
+/* Year Bar Styles */
+body > .year-bar { /* Increase specificity to override other rules */
+    background-color: #e9ecef;
+    padding: 8px 16px;
+    position: fixed; /* Fix position relative to viewport */
+    top: 64px; /* Stick immediately below the 64px app bar */
+    left: 0;
+    right: 0;
+    z-index: 1; /* Sit above main content (z-index: 0) but below nav rail (z-index: 100) */
+    display: flex;
+    justify-content: flex-start; /* Align items to the left */
+    border-bottom: 1px solid #dee2e6;
+    box-sizing: border-box; /* Ensure padding is included in height */
+}
+.year-bar a {
+    color: #343a40;
+    padding: 6px 12px;
+    text-decoration: none;
+    font-size: 15px;
+    border-radius: 4px;
+    margin: 0 4px;
+}
+.year-bar a:hover, .year-bar a.active {
+    background-color: #007bff;
+    color: white;
 }
