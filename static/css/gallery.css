@@ -185,35 +185,6 @@
     background-color: #d32f2f;
 }
 
-
-/* Year Bar Styles */
-.year-bar {
-    position: fixed;
-    top: 50px; /* Position it directly below the main nav */
-    left: 0;
-    width: 100%;
-    background-color: #f1f1f1;
-    border-bottom: 1px solid #ddd;
-    padding: 5px 10px;
-    box-sizing: border-box;
-    z-index: 998; /* Below main nav, above content */
-    white-space: nowrap;
-    overflow-x: auto;
-}
-.year-bar a {
-    display: inline-block;
-    color: #333;
-    text-align: center;
-    padding: 8px 12px;
-    text-decoration: none;
-}
-.year-bar a sup {
-    font-size: 0.6em;
-    margin-left: 2px;
-    color: #666;
-    font-weight: normal;
-}
-
 /* Dropdown Menu Styles */
 .photo-menu-btn {
     position: absolute;

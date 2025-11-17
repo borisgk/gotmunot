@@ -32,3 +32,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 });
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Add ripple effect to all icon buttons in the app bar
+    const iconButtons = document.querySelectorAll('.m3-app-bar .icon-button');
+
+    iconButtons.forEach(button => {
+        button.addEventListener('click', function(e) {
+            const rect = button.getBoundingClientRect();
+            const ripple = document.createElement('span');
+            const diameter = Math.max(button.clientWidth, button.clientHeight);
+            const radius = diameter / 2;
+
+            ripple.style.width = ripple.style.height = `${diameter}px`;
+            ripple.style.left = `${e.clientX - rect.left - radius}px`;
+            ripple.style.top = `${e.clientY - rect.top - radius}px`;
+            ripple.classList.add('ripple');
+
+            // Remove any existing ripples before adding a new one
+            const oldRipple = button.querySelector('.ripple');
+            if (oldRipple) {
+                oldRipple.remove();
+            }
+
+            button.appendChild(ripple);
+        });
+    });
+});
