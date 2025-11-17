@@ -2,14 +2,19 @@
 <html>
 <head>
     <title>Upload Photos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
     <!-- Link to locally hosted fonts -->
     <link rel="stylesheet" href="/static/css/fonts.css">
-    <link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
+	<link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/app-bar.css">
+	<link rel="stylesheet" href="/static/css/navigation-rail.css">
+	<script src="/static/js/app-bar.js" defer></script>
     <style>
         body {
             font-family: 'Open Sans', sans-serif;
-            padding-top: 70px; /* Space for the fixed top nav */
+            padding-top: 80px; padding-left: 0; /* Space for app bar and nav rail */
         }
         .content-wrapper {
             padding: 0 2em; /* Add horizontal padding */
@@ -78,6 +83,9 @@
     
     <!-- Showing the top application bar which is common for all pages -->
 	{{template "header" .}}
+
+	<!-- Show the navigation rail -->
+	{{template "nav_rail" .}}
 
     <div class="content-wrapper">
         <h2>Upload Files</h2>

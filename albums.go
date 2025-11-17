@@ -45,11 +45,13 @@ func albumsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := struct {
-		Username string
-		Albums   []Album
+		Username    string
+		Albums      []Album
+		CurrentPage string
 	}{
-		Username: username,
-		Albums:   albums,
+		Username:    username,
+		Albums:      albums,
+		CurrentPage: "albums",
 	}
 
 	// Execute the "albums.html" template
@@ -130,12 +132,14 @@ func albumDetailHandler(w http.ResponseWriter, r *http.Request) {
 		TotalPhotos int // For photogrid template
 		FilterYear  int // For photogrid template
 		DayGroups   []DayGroup
+		CurrentPage string
 	}{
 		Username:    username,
 		Album:       album,
 		TotalPhotos: len(photos),
 		FilterYear:  0, // No year filtering on this page
 		DayGroups:   dayGroups,
+		CurrentPage: "albums",
 	}
 
 	if err := tmpl.ExecuteTemplate(w, "album_detail.html", data); err != nil {
@@ -282,7 +286,13 @@ func newAlbumHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := struct{ Username string }{Username: username}
+	data := struct {
+		Username    string
+		CurrentPage string
+	}{
+		Username:    username,
+		CurrentPage: "albums",
+	}
 
 	if err := tmpl.ExecuteTemplate(w, "new_album.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)

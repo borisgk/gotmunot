@@ -1,0 +1,24 @@
+{{define "nav_rail"}}
+<nav class="m3-nav-rail">
+    <div class="m3-nav-rail-destinations">
+        <a href="/gallery" class="m3-nav-rail-destination {{if eq .CurrentPage "gallery"}}active{{end}}" title="Gallery">
+            <div class="icon-container">
+                <span class="material-symbols-outlined">photo_library</span> 
+            </div>
+            <span class="label">Gallery</span>
+        </a>
+        <a href="/albums" class="m3-nav-rail-destination {{if eq .CurrentPage "albums"}}active{{end}}" title="Albums">
+            <div class="icon-container">
+                <span class="material-symbols-outlined">photo_album</span> 
+            </div>
+            <span class="label">Albums</span>
+        </a>
+        <a href="/upload-page" class="m3-nav-rail-destination {{if eq .CurrentPage "upload"}}active{{end}}" title="Upload">
+            <div class="icon-container">
+                <span class="material-symbols-outlined">upload</span> 
+            </div>
+            <span class="label">Upload</span>
+        </a>
+    </div>
+</nav>
+{{end}}

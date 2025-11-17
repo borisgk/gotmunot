@@ -1,0 +1,79 @@
+/* /home/ubuntu/go/src/tm25/static/css/navigation-rail.css */
+
+:root {
+    --m3-nav-rail-background: var(--m3-app-bar-background); /* Surface Container */
+    --m3-nav-rail-width-collapsed: 80px;
+    --m3-nav-rail-indicator-color: #e8def8; /* Secondary Container */
+    --m3-nav-rail-icon-color: var(--m3-on-surface-variant);
+    --m3-nav-rail-icon-color-active: #21005d; /* On Secondary Container */
+    --m3-nav-rail-label-color: var(--m3-on-surface-variant);
+}
+
+.m3-nav-rail {
+    position: fixed;
+    top: 64px; /* Start below the 64px app bar */
+    left: 0;
+    bottom: 0;
+    width: var(--m3-nav-rail-width-collapsed);
+    background-color: var(--m3-nav-rail-background);
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Align content to the center of the rail */
+    padding-top: 24px; /* Add some space from the top of the rail */
+    z-index: 100; /* Below app bar, above content */
+    transform: translateX(-100%); /* Hidden by default */
+    transition: transform 0.2s ease-in-out;
+}
+
+.m3-nav-rail-destinations {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px; /* Space between destinations */
+    width: 100%;
+}
+
+.m3-nav-rail-destination {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 56px;
+    text-decoration: none;
+    color: var(--m3-nav-rail-label-color);
+    position: relative;
+}
+
+.m3-nav-rail-destination .icon-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 32px;
+    border-radius: 16px;
+    transition: background-color 0.2s ease-in-out;
+}
+
+.m3-nav-rail-destination .icon-container .material-symbols-outlined {
+    color: var(--m3-nav-rail-icon-color);
+    font-size: 24px;
+}
+
+.m3-nav-rail-destination .label {
+    font-size: 12px;
+    font-weight: 500;
+    margin-top: 4px;
+}
+
+.m3-nav-rail-destination.active .icon-container {
+    background-color: var(--m3-nav-rail-indicator-color);
+}
+.m3-nav-rail-destination.active .icon-container .material-symbols-outlined {
+    color: var(--m3-nav-rail-icon-color-active);
+}
+
+/* Visible State */
+.m3-nav-rail.visible {
+    transform: translateX(0);
+}

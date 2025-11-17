@@ -104,23 +104,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
         });
     }
 
-    document.getElementById('batch-change-date-btn').addEventListener('click', (e) => {
-        e.preventDefault();
-        document.getElementById('selection-dropdown').classList.remove('show');
-        const selectedCount = document.querySelectorAll('.photo-select-checkbox:checked').length;
-        if (selectedCount === 0) {
-            alert('Please select photos first.');
-            return;
-        }
-        // Pre-fill with current time
-        const now = new Date();
-        const timezoneOffset = now.getTimezoneOffset() * 60000;
-        const localISOTime = new Date(now.getTime() - timezoneOffset).toISOString().slice(0, 16);
-        document.getElementById('batch-new-date-input').value = localISOTime;
-
-        batchChangeDateModal.style.display = 'block';
-    });
-
     /* --- Add to Album Modal Logic --- */
     const addToAlbumModal = document.getElementById('add-to-album-modal');
     if (addToAlbumModal) {
@@ -169,27 +152,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 document.getElementById('clear-selection-btn').click(); // Clear selection
             } catch (error) {
                 alert(`Error: ${error.message}`);
-            }
-        });
-
-        document.getElementById('add-selected-to-album-btn').addEventListener('click', async (e) => {
-            e.preventDefault();
-            document.getElementById('selection-dropdown').classList.remove('show');
-            const selectedCount = document.querySelectorAll('.photo-select-checkbox:checked').length;
-            if (selectedCount === 0) {
-                alert('Please select photos first.');
-                return;
-            }
-
-            // Fetch the list of albums and populate the select dropdown
-            try {
-                const response = await fetch('/api/albums/list');
-                if (!response.ok) throw new Error('Failed to fetch albums.');
-                const albums = await response.json();
-                albumSelect.innerHTML = albums.map(album => `<option value="${album.id}">${album.name}</option>`).join('');
-                addToAlbumModal.style.display = 'block';
-            } catch (error) {
-                alert(error.message);
             }
         });
     }
@@ -252,21 +214,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
 
     /* --- Selection & Action Bar Logic --- */
-    const selectionBar = document.getElementById('selection-bar');
-    const selectionCount = document.getElementById('selection-count');
-
-    function updateSelectionBar() {
-        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
-        const count = selectedCheckboxes.length;
-
-        if (count > 0) {
-            selectionCount.textContent = `${count} Selected`;
-            selectionBar.classList.add('active');
-        } else {
-            selectionBar.classList.remove('active');
-        }
-    }
-
     document.addEventListener('change', function(event) {
         if (event.target.matches('.photo-select-checkbox')) {
             const photoItem = event.target.closest('.photo-item');
@@ -275,7 +222,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
             } else {
                 photoItem.classList.remove('selected');
             }
-            updateSelectionBar();
         }
 
         // Handle "select all for day" checkbox clicks
@@ -298,174 +244,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
 
-    document.getElementById('delete-selected-btn').addEventListener('click', function(event) {
-        event.preventDefault(); // Prevent link navigation
-        document.getElementById('selection-dropdown').classList.remove('show');
-
-        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
-        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
-
-        if (filenames.length === 0) {
-            alert('No photos selected.');
-            return;
-        }
-
-        if (confirm(`Are you sure you want to delete ${filenames.length} selected photo(s)? This cannot be undone.`)) {
-            fetch('/api/photos/delete', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filenames: filenames }),
-            })
-            .then(response => {
-                if (response.ok) {
-                    // On success, remove the items from the DOM and reset the selection bar
-                    const galleriesToUpdate = new Set();
-                    selectedCheckboxes.forEach(cb => {
-                        const photoItem = cb.closest('.photo-item');
-                        if (photoItem) {
-                            galleriesToUpdate.add(photoItem.parentElement);
-                            photoItem.remove();
-                        }
-                    });
-
-                    // Check any galleries that were modified to see if they are now empty.
-                    galleriesToUpdate.forEach(gallery => {
-                        if (gallery && gallery.children.length === 0) {
-                            gallery.previousElementSibling?.remove(); // Remove date header
-                            gallery.remove();
-                        }
-                    });
-                    updateSelectionBar();
-                    updateTotalCounts(filenames.length);
-                } else {
-                    alert(`Error deleting photos: ${response.statusText}`);
-                }
-            })
-            .catch(error => alert('A network error occurred.'));
-        }
-    });
-
-    document.getElementById('download-previews-btn').addEventListener('click', function(event) {
-        event.preventDefault(); // Prevent link navigation
-        document.getElementById('selection-dropdown').classList.remove('show');
-
-        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
-        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
-
-        if (filenames.length === 0) {
-            alert('No photos selected for download.');
-            return;
-        }
-
-        // Construct the URL with filenames as query parameters.
-        // This is safe for a reasonable number of files.
-        const query = new URLSearchParams();
-        filenames.forEach(name => query.append('filename', name));
-        
-        // Redirect the browser to trigger the download.
-        window.location.href = `/api/photos/download-previews?${query.toString()}`;
-    });
-
-    document.getElementById('download-originals-btn').addEventListener('click', async function(event) {
-        event.preventDefault(); // Prevent link navigation
-        document.getElementById('selection-dropdown').classList.remove('show');
-
-        const selectedCheckboxes = document.querySelectorAll('.photo-select-checkbox:checked');
-        const filenames = Array.from(selectedCheckboxes).map(cb => cb.dataset.filename);
-
-        if (filenames.length === 0) { return; }
-
-        // Show the progress modal
-        const progressModal = document.getElementById('progress-modal');
-        const progressTitle = document.getElementById('progress-title');
-        const progressText = document.getElementById('progress-text');
-        const progressBar = document.getElementById('progress-bar');
-        const cancelBtn = document.getElementById('progress-cancel-btn');
-
-        progressTitle.textContent = 'Preparing Download...';
-        progressText.textContent = 'Starting zip process...';
-        progressBar.style.width = '0%';
-        progressModal.style.display = 'block';
-
-        try {
-            let pollInterval; // Define here to be accessible in the cancel handler
-            let isCancelled = false;
-
-            // 1. Start the download task
-            const startResponse = await fetch('/api/downloads/start', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filenames: filenames, type: 'originals' }),
-            });
-
-            if (!startResponse.ok) {
-                throw new Error('Failed to start download process.');
-            }
-
-            const { task_id } = await startResponse.json();
-
-            // Handle cancellation
-            cancelBtn.onclick = async () => {
-                isCancelled = true;
-                clearInterval(pollInterval);
-                await fetch(`/api/downloads/cancel?id=${task_id}`, { method: 'POST' });
-                progressModal.style.display = 'none';
-            };
-
-            // 2. Poll for status
-            pollInterval = setInterval(async () => {
-                // Stop polling if the user has cancelled
-                if (isCancelled) {
-                    clearInterval(pollInterval);
-                    return;
-                }
-                try {
-                    const statusResponse = await fetch(`/api/downloads/status?id=${task_id}`);
-                    if (!statusResponse.ok) {
-                        // Stop polling if task not found (e.g., server restarted)
-                        throw new Error('Task not found.');
-                    }
-
-                    const progress = await statusResponse.json();
-
-                    // Update modal UI
-                    const percent = progress.total > 0 ? (progress.processed / progress.total) * 100 : 0;
-                    progressBar.style.width = `${percent}%`;
-                    progressText.textContent = `Processing ${progress.processed || 0} of ${progress.total || 0}: ${progress.filename || ''}`;
-
-                    if (progress.error) {
-                        throw new Error(progress.error);
-                    }
-
-                    // 3. When complete, trigger download and close modal
-                    if (progress.complete && progress.download_url && !progress.cancelled) {
-                        clearInterval(pollInterval);
-                        progressTitle.textContent = 'Download Ready!';
-                        progressText.textContent = 'Your download will begin shortly...';
-                        window.location.href = progress.download_url;
-                        // Close modal after a short delay
-                        setTimeout(() => {
-                            progressModal.style.display = 'none';
-                        }, 3000);
-                    }
-                } catch (pollError) {
-                    clearInterval(pollInterval);
-                    alert(`An error occurred: ${pollError.message}`);
-                    progressModal.style.display = 'none';
-                }
-            }, 750); // Poll every 0.75 seconds
-        } catch (startError) {
-            alert(`Could not start download: ${startError.message}`);
-            progressModal.style.display = 'none';
-        }
-    });
-
-
     document.getElementById('clear-selection-btn').addEventListener('click', function(event) {
         event.preventDefault(); // Prevent link navigation
-        document.getElementById('selection-dropdown').classList.remove('show');
 
         // Find all checked boxes and un-check them
         document.querySelectorAll('.photo-select-checkbox:checked').forEach(cb => {
@@ -479,21 +259,6 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
     /* Dropdown Menu Logic */
     document.addEventListener('click', function(event) {
-        // Close all open dropdowns unless a menu button is clicked
-        const selectionMenuTrigger = document.getElementById('selection-menu-trigger');
-        const selectionDropdown = document.getElementById('selection-dropdown');
-
-        // If the click is on the selection trigger, toggle its dropdown
-        if (selectionMenuTrigger.contains(event.target)) {
-            event.preventDefault();
-            selectionDropdown.classList.toggle('show');
-        } else {
-            // Otherwise, if the click is outside the selection dropdown, close it.
-            if (selectionDropdown.classList.contains('show') && !selectionDropdown.contains(event.target)) {
-                selectionDropdown.classList.remove('show');
-            }
-        }
-
         // Close any open per-photo dropdowns if the click was not on their menu button
         if (!event.target.matches('.photo-menu-btn')) {
             document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));

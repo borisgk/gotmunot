@@ -2,15 +2,23 @@
 <html>
 <head>
 	<title>New Album</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
 	<link rel="stylesheet" href="/static/css/fonts.css">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 	<link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/app-bar.css">
+	<link rel="stylesheet" href="/static/css/navigation-rail.css">
 	<link rel="stylesheet" href="/static/css/albums.css">
+	<script src="/static/js/app-bar.js" defer></script>
 	<script src="/static/js/new_album.js" defer></script>
 </head>
-<body>
+<body style="padding-top: 80px; padding-left: 0;">
 	<!-- Include the common header -->
 	{{template "header" .}}
+
+	<!-- Show the navigation rail -->
+	{{template "nav_rail" .}}
 
 	<div class="new-album-container">
 		<h1>Create New Album</h1>

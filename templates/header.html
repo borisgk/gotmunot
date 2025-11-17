@@ -1,22 +1,22 @@
 {{define "header"}}
-	<div class="top-nav">
-		<img src="/logo.png" alt="Logo" class="logo">
-		<a href="/gallery">Gallery</a>
-        <a href="/albums">Albums</a>
-		<a href="/upload-page">Upload</a>
-		<div id="selection-bar" class="selection-action-bar">
-			<a href="#" id="selection-menu-trigger"><span id="selection-count"></span></a>
-			<div id="selection-dropdown" class="dropdown-content">
-				<a href="#" id="clear-selection-btn">Clear selection</a>
-				<a href="#" id="delete-selected-btn">Delete Selected</a>
-				<a href="#" id="batch-change-date-btn">Change Date</a>
-				<a href="#" id="download-previews-btn">Download previews</a>
-				<a href="#" id="download-originals-btn">Download originals</a>
-				<a href="#" id="add-selected-to-album-btn">Add to Album</a>
+	<header class="m3-app-bar">
+		<!-- Normal App Bar Content -->
+		<div class="normal-content" style="display: flex; align-items: center; width: 100%;">
+			<button id="nav-rail-trigger" class="icon-button" title="Navigation"><span class="material-symbols-outlined">menu</span></button>
+			<div class="actions">
+				<a href="/logout" class="icon-button" title="Logout">
+					<span class="material-symbols-outlined">logout</span>
+				</a>
 			</div>
 		</div>
-		<div class="top-nav-right">
-			<a href="/logout">Logout ({{.Username}})</a>
+
+		<!-- Contextual Action Bar Content (initially hidden) -->
+		<div class="contextual-content" style="display: none; align-items: center; width: 100%;">
+			<button id="clear-selection-btn" class="icon-button" title="Clear selection">
+				&#x2715; <!-- Close icon -->
+			</button>
+			<span id="selection-count" class="selection-count"></span>
+			<!-- Selection menu logic is temporarily removed -->
 		</div>
-	</div>
+	</header>
 {{end}}

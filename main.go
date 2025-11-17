@@ -137,8 +137,14 @@ func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Execute the "upload.html" template and pass the username.
-	if err := tmpl.ExecuteTemplate(w, "upload.html", struct{ Username string }{username}); err != nil {
+	data := struct {
+		Username    string
+		CurrentPage string
+	}{
+		Username:    username,
+		CurrentPage: "upload",
+	}
+	if err := tmpl.ExecuteTemplate(w, "upload.html", data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

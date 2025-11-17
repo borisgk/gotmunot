@@ -1,0 +1,38 @@
+{{define "header"}}
+	<header class="m3-app-bar">
+		<!-- Normal App Bar Content -->
+		<div class="normal-content" style="display: flex; align-items: center; width: 100%;">
+			<img src="/logo.png" alt="Logo" class="logo">
+			<h1 class="headline">Tmunot</h1>
+			<nav class="nav-tabs">
+				<a href="/gallery" class="nav-tab">Gallery</a>
+				<a href="/albums" class="nav-tab">Albums</a>
+				<a href="/upload-page" class="nav-tab">Upload</a>
+			</nav>
+			<div class="actions">
+				<a href="/logout" class="logout-link">Logout ({{.Username}})</a>
+			</div>
+		</div>
+
+		<!-- Contextual Action Bar Content (initially hidden) -->
+		<div class="contextual-content" style="display: none; align-items: center; width: 100%;">
+			<button id="clear-selection-btn" class="icon-button" title="Clear selection">
+				&#x2715; <!-- Close icon -->
+			</button>
+			<span id="selection-count" class="selection-count"></span>
+			<div class="actions">
+				<button id="selection-menu-trigger" class="icon-button" title="More actions">
+					&#x22EE; <!-- Vertical ellipsis -->
+				</button>
+				<div id="selection-dropdown" class="m3-menu">
+					<a href="#" id="add-selected-to-album-btn">Add to Album...</a>
+					<a href="#" id="batch-change-date-btn">Change Date...</a>
+					<a href="#" id="download-previews-btn">Download previews</a>
+					<a href="#" id="download-originals-btn">Download originals</a>
+					<hr style="margin: 8px 0; border-color: rgba(0,0,0,0.1);">
+					<a href="#" id="delete-selected-btn" style="color: #B3261E;">Delete Selected</a>
+				</div>
+			</div>
+		</div>
+	</header>
+{{end}}

@@ -131,6 +131,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		FilterYear     int
 		Years          []int
 		PhotoCounts    map[int]int
+		CurrentPage    string
 	}{
 		Username:       username,
 		DayGroups:      dayGroups,
@@ -140,6 +141,7 @@ func galleryHandler(w http.ResponseWriter, r *http.Request) {
 		FilterYear:     year,
 		Years:          years,
 		PhotoCounts:    photoCounts,
+		CurrentPage:    "gallery",
 	}
 
 	// Execute the "gallery.html" template and pass the data.

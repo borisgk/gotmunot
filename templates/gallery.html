@@ -2,21 +2,29 @@
 <html>
 <head>
 	<title>Content</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<!-- Link to locally hosted fonts -->
 	<link rel="icon" href="/static/img/favicon-96x96.png" type="image/png">
 	<link rel="stylesheet" href="/static/css/fonts.css">
+	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 
-	<script src="/static/js/task-poller.js"></script>
 	<link rel="stylesheet" href="/static/css/common.css">
+	<link rel="stylesheet" href="/static/css/app-bar.css">
+	<link rel="stylesheet" href="/static/css/navigation-rail.css">
 	<link rel="stylesheet" href="/static/css/gallery.css">
-	<script src="/static/js/gallery.js"></script>
+	<script src="/static/js/app-bar.js" defer></script>
+	<script src="/static/js/task-poller.js"></script>
+	<script src="/static/js/gallery.js" defer></script>
 </head> 
-<body style="padding-top: 100px;">
+<body style="padding-top: 80px; padding-left: 0;">
 	<!-- Showing the top application bar which is common for all pages -->
 	{{template "header" .}}
 
+	<!-- Show the navigation rail -->
+	{{template "nav_rail" .}}
+
 	<!-- Showing the years bar -->
-	 {{template "yearsbar" .}}
+	 {{/* {{template "yearsbar" .}} */}}
 
 	<!-- Showing the grid with the thumbnails -->
 	{{template "photogrid" .}}
