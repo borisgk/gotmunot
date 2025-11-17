@@ -1,12 +1,13 @@
 /* /home/ubuntu/go/src/tm25/static/css/app-bar.css */
 
 /* Using CSS variables for easier theming based on M3 specs */
+/* Israeli Blue & White Theme */
 :root {
-    --m3-app-bar-background: #f7f2fa; /* Surface Container */
+    --m3-app-bar-background: #f8f9fa; /* Surface Container - Light Gray */
     --m3-on-surface: #1d1b20;
     --m3-on-surface-variant: #49454f;
-    --m3-primary: #6750a4;
-    --m3-surface-container-highest: #e6e0e9;
+    --m3-primary: #0052A4; /* A strong, classic blue */
+    --m3-surface-container-highest: #e9ecef; /* A slightly darker gray for context/menus */
     --m3-menu-shadow: 0px 2px 6px 2px rgba(0,0,0,0.15), 0px 1px 2px 0px rgba(0,0,0,0.3);
 }
 

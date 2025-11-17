@@ -62,6 +62,6 @@ body > .year-bar { /* Increase specificity to override other rules */
     margin: 0 4px;
 }
 .year-bar a:hover, .year-bar a.active {
-    background-color: #007bff;
+    background-color: var(--m3-primary);
     color: white;
 }
