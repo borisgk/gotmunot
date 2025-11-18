@@ -16,8 +16,19 @@
 			<button id="clear-selection-btn" class="icon-button" title="Clear selection">
 				&#x2715; <!-- Close icon -->
 			</button>
-			<span id="selection-count" class="selection-count"></span>
-			<!-- Selection menu logic is temporarily removed -->
+			<!-- M3 Split Button -->
+			<div class="m3-split-button">
+				<button id="selection-main-action" class="main-action">
+					<span id="selection-count">0 selected</span>
+				</button>
+				<button id="selection-menu-trigger" class="dropdown-trigger icon-button">
+					<span class="material-symbols-outlined">arrow_drop_down</span>
+				</button>
+				<ul id="selection-menu" class="m3-menu">
+					<li><a href="#" id="add-to-album-action">Add to album...</a></li>
+					<li><a href="#" id="batch-change-date-action">Change date...</a></li>
+				</ul>
+			</div>
 		</div>
 	</header>
 {{end}}

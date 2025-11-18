@@ -222,6 +222,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
             } else {
                 photoItem.classList.remove('selected');
             }
+            // Call the function to update the app bar's state
+            window.updateSelectionBar();
         }
 
         // Handle "select all for day" checkbox clicks

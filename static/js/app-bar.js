@@ -1,5 +1,4 @@
 // /home/ubuntu/go/src/tm25/static/js/app-bar.js
-document.addEventListener('DOMContentLoaded', () => {
     const appBar = document.querySelector('.m3-app-bar');
     const navRail = document.querySelector('.m3-nav-rail');
     const body = document.body;
@@ -7,6 +6,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const contextualContent = appBar?.querySelector('.contextual-content');
     const selectionCountSpan = document.getElementById('selection-count');
     const navRailTrigger = document.getElementById('nav-rail-trigger');
+
+    // Split button elements
+    const selectionMenuTrigger = document.getElementById('selection-menu-trigger');
+    const selectionMenu = document.getElementById('selection-menu');
     
     // Function to update the bar state
     window.updateSelectionBar = function() {
@@ -31,8 +34,36 @@ document.addEventListener('DOMContentLoaded', () => {
             navRail.classList.toggle('visible');
         });
     }
-});
 
+    // Contextual Menu (Split Button) Logic
+    if (selectionMenuTrigger && selectionMenu) {
+        selectionMenuTrigger.addEventListener('click', (e) => {
+            e.stopPropagation(); // Prevent document click listener from closing it immediately
+            selectionMenu.classList.toggle('show');
+        });
+
+        // Add to Album action
+        document.getElementById('add-to-album-action').addEventListener('click', (e) => {
+            e.preventDefault();
+            selectionMenu.classList.remove('show');
+            document.getElementById('add-to-album-modal').style.display = 'block';
+        });
+
+        // Batch Change Date action
+        document.getElementById('batch-change-date-action').addEventListener('click', (e) => {
+            e.preventDefault();
+            selectionMenu.classList.remove('show');
+            document.getElementById('batch-change-date-modal').style.display = 'block';
+        });
+    }
+
+    // Global click listener to close the menu
+    document.addEventListener('click', (e) => {
+        // Close the selection menu if it's open and the click is outside
+        if (selectionMenu && selectionMenu.classList.contains('show') && !e.target.closest('.m3-split-button')) {
+            selectionMenu.classList.remove('show');
+        }
+    });
 document.addEventListener('DOMContentLoaded', () => {
     // Add ripple effect to all icon buttons in the app bar
     const iconButtons = document.querySelectorAll('.m3-app-bar .icon-button');

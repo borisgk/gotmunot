@@ -125,6 +125,45 @@
     margin-left: auto;
 }
 
+/* Split Button Styles */
+.m3-split-button {
+    display: flex;
+    align-items: center;
+    margin-left: 12px;
+    border: 1px solid var(--m3-on-surface-variant);
+    border-radius: 20px; /* Fully rounded */
+    overflow: hidden;
+    position: relative; /* For the menu */
+}
+.m3-split-button .main-action {
+    background-color: transparent;
+    border: none;
+    padding: 0 16px;
+    height: 40px;
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--m3-on-surface-variant);
+    border-right: 1px solid var(--m3-on-surface-variant);
+}
+.m3-split-button .main-action:hover {
+    background-color: rgba(0,0,0,0.04);
+}
+.m3-split-button .dropdown-trigger {
+    /* It already has .icon-button styles, so we just adjust size and remove margin */
+    width: 40px;
+    height: 40px;
+    margin: 0;
+    padding: 0;
+}
+.m3-split-button #selection-menu {
+    top: 48px; /* Position below the split button */
+    left: 0;
+    right: auto;
+    min-width: 200px;
+}
+
 /* Dropdown Menu for actions */
 .m3-menu {
     display: none; /* Hidden by default */
