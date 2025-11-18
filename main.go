@@ -53,6 +53,9 @@ func main() {
 	// Handler for logout page
 	http.HandleFunc("/logout", logoutHandler)
 	//Handler for the upload
+	// Handler for the settings page
+	http.HandleFunc("/settings", settingsHandler)
+
 	http.HandleFunc("/upload", uploadHandler)
 	// Handler for the upload page
 	http.HandleFunc("/upload-page", uploadPageHandler)
@@ -269,4 +272,24 @@ func updatePhotoDateHandler(w http.ResponseWriter, r *http.Request) {
 	// 6. Respond with success
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+}
+
+func settingsHandler(w http.ResponseWriter, r *http.Request) {
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Redirect(w, r, "/login?redirect_url=/settings", http.StatusSeeOther)
+		return
+	}
+
+	data := struct {
+		Username    string
+		CurrentPage string
+	}{
+		Username:    username,
+		CurrentPage: "settings",
+	}
+	if err := tmpl.ExecuteTemplate(w, "settings.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 }

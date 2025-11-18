@@ -19,15 +19,15 @@ h1, h2, h3, h4, h5, h6 {
 
 /* --- M3 Style Definitions --- */
 :root {
-  --md-sys-color-primary: #6750A4;
+  --md-sys-color-primary: #0052A4; /* Israeli Blue */
   --md-sys-color-on-primary: #FFFFFF;
-  --md-sys-color-primary-container: #EADDFF;
-  --md-sys-color-on-primary-container: #21005D;
+  --md-sys-color-primary-container: #D6E4FF; /* Light Blue */
+  --md-sys-color-on-primary-container: #001D36; /* Dark Blue */
   --md-sys-color-outline: #79747E;
   --md-sys-color-on-surface: #1D1B20;
   --md-sys-color-on-surface-variant: #49454F;
-  --md-sys-color-surface: #FEF7FF;
-  --md-sys-color-surface-container: #F3EDF7;
+  --md-sys-color-surface: #f8f9fa; /* Light Gray Surface */
+  --md-sys-color-surface-container: #e9ecef; /* Slightly darker gray for card */
   --md-sys-state-hover-opacity: 0.08;
   --md-sys-state-focus-opacity: 0.12;
   --md-sys-state-pressed-opacity: 0.12;
