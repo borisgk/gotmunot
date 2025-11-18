@@ -39,6 +39,7 @@
     margin: 0; /* Reset margin, now handled by .date-header */
     font-weight: 400;
     color: #444;
+    font-size: 16px; /* M3 Title Medium */
 }
 .date-header {
     display: flex;
