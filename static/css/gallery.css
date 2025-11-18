@@ -39,11 +39,6 @@
     font-weight: 400;
     color: #444;
 }
-.date-separator .photo-count {
-    font-weight: normal;
-    font-size: 0.8em;
-    color: #666;
-}
 .date-header {
     display: flex;
     align-items: center;
@@ -57,28 +52,34 @@
     -moz-appearance: none;
     appearance: none;
 
-    /* Custom round style */
-    width: 24px;
-    height: 24px;
-    background-color: rgba(255, 255, 255, 0.9);
-    border: 1px solid #ccc;
+    /* M3 Radio Button Style - Unselected */
+    width: 20px;
+    height: 20px;
+    border: 2px solid #444; /* On-surface-variant like color */
     border-radius: 50%;
+    background-color: transparent;
     cursor: pointer;
-    transition: background-color 0.2s ease-in-out;
+    transition: all 0.2s ease-in-out;
 
-    /* For checkmark positioning */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    /* For inner dot positioning */
+    position: relative;
+    display: inline-block;
+    vertical-align: middle;
+    margin: 0; /* Reset any default margins */
 }
 .day-select-checkbox:checked {
-    background-color: #007bff;
-    border-color: #007bff;
+    border-color: #007bff; /* Primary color */
 }
 .day-select-checkbox:checked::after {
-    content: '✔';
-    color: white;
-    font-size: 14px;
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 10px; /* 10px dot inside 20px circle */
+    height: 10px;
+    border-radius: 50%;
+    background-color: #007bff; /* Primary color */
+    transform: translate(-50%, -50%);
 }
 
 /* Lightbox Modal Styles */
