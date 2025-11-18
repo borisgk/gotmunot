@@ -21,7 +21,8 @@
     content: '';
     position: absolute;
     inset: 0; /* Covers the entire item */
-    box-shadow: inset 0 0 0 3px #007bff; /* Blue border inside */
+    background-color: rgba(0, 0, 0, 0.4); /* Dimming overlay */
+    box-shadow: inset 0 0 0 3px #007bff; /* Keep the blue border inside */
 }
 .photo-item p {
     margin: 5px 0 0 0;
@@ -250,32 +251,39 @@
     position: absolute;
     top: 5px;
     left: 5px;
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
     z-index: 10;
 
-    /* Custom round style */
-    background-color: rgba(255, 255, 255, 0.7);
-    border: 1px solid #ccc;
+    /* M3 Radio Button Style - Adapted for image overlay */
+    background-color: rgba(0, 0, 0, 0.3); /* Add a background for visibility */
+    border: 2px solid white;
     border-radius: 50%;
+    box-sizing: border-box; /* Ensure border is included in the size */
     cursor: pointer;
-    opacity: 0.5;
-    transition: opacity 0.2s ease-in-out, background-color 0.2s ease-in-out;
-    
-    /* For checkmark positioning */
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    opacity: 0; /* Hidden by default, shown on hover */
+    visibility: hidden;
+    transition: opacity 0.2s ease-in-out, visibility 0.2s ease-in-out;
 }
-.photo-item:hover .photo-select-checkbox, .photo-select-checkbox:checked {
+.photo-item:hover .photo-select-checkbox, .photo-item.selected .photo-select-checkbox {
     opacity: 1;
+    visibility: visible;
 }
 .photo-select-checkbox:checked {
-    background-color: #007bff;
-    border-color: #007bff;
+    background-color: #007bff; /* Use primary color for selected background */
+    border-color: #007bff; /* Match border to background */
 }
 .photo-select-checkbox:checked::after {
-    content: '✔';
-    color: white;
-    font-size: 14px;
+    content: '';
+    /* Center the dot inside the checkbox */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    /* Dot styles */
+    width: 10px;
+    height: 10px;
+    background-color: white;
+    border-radius: 50%;
 }
