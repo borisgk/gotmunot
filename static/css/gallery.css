@@ -283,8 +283,8 @@
     transform: translate(-50%, -50%);
 
     /* Dot styles */
-    width: 10px;
-    height: 10px;
+    width: 16px;
+    height: 16px;
     background-color: white;
     border-radius: 50%;
 }

@@ -1,0 +1,32 @@
+/* Styles for individual photo items in the grid */
+
+/* Increase the size of photo selection checkboxes for better usability */
+.photo-item .photo-select-checkbox {
+    width: 32px;
+    height: 32px;
+}
+
+/* Set an absolute size for the photo menu button to match the checkbox */
+.photo-item .photo-menu-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0; /* Let flexbox handle centering */
+    box-sizing: border-box;
+    top: 8px; /* Adjust position */
+    border: 2px solid white;
+    border-radius: 50%; /* Make it circular */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Style the photo item's M3 menu */
+.photo-item .m3-menu {
+    position: absolute;
+    top: 30px; /* Position below the button */
+    right: 5px;
+    display: none; /* Hidden by default */
+}
+.photo-item .m3-menu.show {
+    display: block; /* Shown by JS */
+}

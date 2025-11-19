@@ -23,12 +23,14 @@
                 <img src="{{.ThumbPath}}" alt="{{.Filename}}" title="{{.Filename}}" loading="lazy"
                     width="{{.ThumbWidth}}" height="{{.ThumbHeight}}">
             </a>
-            <button class="photo-menu-btn" data-filename="{{.Filename}}">&#8942;</button>
-            <div class="dropdown-content">
-                <a href="#" class="info-btn">Info</a>
-                <a href="#" class="change-date-btn">Change date</a>
-                <a href="#" class="delete-btn">Delete</a>
-            </div>
+            <button class="photo-menu-btn icon-button" data-filename="{{.Filename}}">
+                <span class="material-symbols-outlined">more_vert</span>
+            </button>
+            <ul class="m3-menu dropdown-content">
+                <li class="m3-menu-item info-btn" role="menuitem" tabindex="-1">Info</li>
+                <li class="m3-menu-item change-date-btn" role="menuitem" tabindex="-1">Change date</li>
+                <li class="m3-menu-item delete-btn" role="menuitem" tabindex="-1">Delete</li>
+            </ul>
         </div>
         {{end}}
     </div>

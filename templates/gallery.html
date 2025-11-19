@@ -13,11 +13,13 @@
 	<link rel="stylesheet" href="/static/css/navigation-rail.css">
 	<link rel="stylesheet" href="/static/css/dialog.css">
 	<link rel="stylesheet" href="/static/css/snackbar.css">
+	<link rel="stylesheet" href="/static/css/photo-grid.css">
 	<link rel="stylesheet" href="/static/css/gallery.css">
 	<script src="/static/js/app-bar.js" defer></script>
 	<script src="/static/js/task-poller.js"></script>
 	<script src="/static/js/gallery.js" defer></script>
 	<script src="/static/js/split-button.js" defer></script>
+	<script src="/static/js/photo-selection.js" defer></script>
 </head> 
 <body>
 	<!-- Showing the top application bar which is common for all pages -->
@@ -53,26 +55,5 @@
 		});
 	</script>
 	{{end}}
-
-	<script>
-		// This script ensures that when a photo is deselected, its corresponding date checkbox is also deselected.
-		document.addEventListener('DOMContentLoaded', () => {
-			const photoCheckboxes = document.querySelectorAll('.photo-item .photo-select-checkbox');
-
-			photoCheckboxes.forEach(checkbox => {
-				checkbox.addEventListener('change', (event) => {
-					if (!event.target.checked) {
-						// Find the parent .photo-gallery and then its preceding .date-header
-						const photoGallery = event.target.closest('.photo-gallery');
-						if (photoGallery && photoGallery.previousElementSibling.classList.contains('date-header')) {
-							const dateHeader = photoGallery.previousElementSibling;
-							const dateCheckbox = dateHeader.querySelector('.day-select-checkbox');
-							if (dateCheckbox) dateCheckbox.checked = false;
-						}
-					}
-				});
-			});
-		});
-	</script>
 </body>
 </html>
