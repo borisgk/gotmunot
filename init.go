@@ -256,5 +256,15 @@ func openUserDB(dbPath string) (*sql.DB, error) {
 			FOREIGN KEY(photo_id) REFERENCES photos(id) ON DELETE CASCADE
 		)
 	`)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create the settings table.
+	_, err = userDB.Exec(`
+		CREATE TABLE IF NOT EXISTS settings (
+			name TEXT NOT NULL PRIMARY KEY,
+			value TEXT NOT NULL
+		)`)
 	return userDB, err
 }
