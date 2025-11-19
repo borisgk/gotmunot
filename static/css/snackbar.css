@@ -4,7 +4,9 @@
     position: fixed;
     bottom: 24px;
     left: 50%;
-    transform: translate(-50%, 150%); /* Start off-screen below */
+    transform: translate(-50%, 10px); /* Start slightly below final position */
+    visibility: hidden; /* Completely hide when not shown */
+    opacity: 0;
     background-color: var(--m3-inverse-surface);
     color: var(--m3-inverse-on-surface);
     padding: 14px 16px;
@@ -16,13 +18,15 @@
     min-width: 320px;
     max-width: 600px;
     z-index: 300;
-    transition: transform 0.3s ease-in-out;
+    transition: transform 0.3s ease-in-out, opacity 0.3s ease-in-out, visibility 0.3s;
     font-family: 'Roboto', sans-serif;
     font-size: 14px;
     pointer-events: none; /* Allow clicks to pass through when hidden */
 }
 
 .m3-snackbar.show {
+    visibility: visible;
+    opacity: 1;
     transform: translate(-50%, 0); /* Slide into view */
     pointer-events: auto;
 }
