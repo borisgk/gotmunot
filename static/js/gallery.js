@@ -112,12 +112,49 @@ document.addEventListener('DOMContentLoaded', (event) => {
         const form = document.getElementById('add-to-album-form');
         const albumSelect = document.getElementById('album-select');
 
+        // Function to fetch albums and populate the dropdown
+        async function populateAlbumSelect() {
+            try {
+                const response = await fetch('/api/albums/list');
+                if (response.status === 401) {
+                    // Session expired, show login modal.
+                    const loginModal = document.getElementById('login-modal');
+                    if (loginModal) loginModal.style.display = 'block';
+                    throw new Error('User not authenticated.');
+                }
+                if (!response.ok) throw new Error('Failed to fetch albums.');
+                const albums = await response.json();
+
+                albumSelect.innerHTML = ''; // Clear existing options
+
+                if (!albums || albums.length === 0) {
+                    albumSelect.innerHTML = '<option value="">No albums found</option>';
+                    return;
+                }
+
+                albums.forEach(album => {
+                    const option = new Option(album.name, album.id);
+                    albumSelect.add(option);
+                });
+            } catch (error) {
+                console.error('Error populating albums:', error);
+                albumSelect.innerHTML = '<option value="">Error loading albums</option>';
+            }
+        }
+
         const closeAddToAlbumModal = () => {
             addToAlbumModal.style.display = 'none';
         };
 
         closeBtn.onclick = closeAddToAlbumModal;
         cancelBtn.onclick = closeAddToAlbumModal;
+
+        // Expose a global function to open the modal and populate it
+        window.openAddToAlbumModal = async function() {
+            await populateAlbumSelect();
+            addToAlbumModal.style.display = 'block';
+            albumSelect.focus(); // For better UX
+        };
 
         // The form submission logic will be added in a future step.
         form.addEventListener('submit', async (e) => {

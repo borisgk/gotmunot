@@ -132,7 +132,6 @@
     margin-left: 12px;
     border: 1px solid var(--m3-on-surface-variant);
     border-radius: 20px; /* Fully rounded */
-    overflow: hidden;
     position: relative; /* For the menu */
 }
 .m3-split-button .main-action {
@@ -146,6 +145,8 @@
     font-weight: 500;
     color: var(--m3-on-surface-variant);
     border-right: 1px solid var(--m3-on-surface-variant);
+    border-top-left-radius: 20px;
+    border-bottom-left-radius: 20px;
 }
 .m3-split-button .main-action:hover {
     background-color: rgba(0,0,0,0.04);
@@ -156,12 +157,40 @@
     height: 40px;
     margin: 0;
     padding: 0;
+    border-top-right-radius: 20px;
+    border-bottom-right-radius: 20px;
+}
+
+.m3-split-button .dropdown-trigger .material-symbols-outlined {
+    transition: transform 0.2s ease-in-out;
+}
+
+.m3-split-button .dropdown-trigger[aria-expanded="true"] .material-symbols-outlined {
+    transform: rotate(180deg);
 }
 .m3-split-button #selection-menu {
     top: 48px; /* Position below the split button */
     left: 0;
     right: auto;
     min-width: 200px;
+}
+.m3-split-button .m3-menu {
+    top: 48px; /* Position below the 40px button + padding/border */
+    left: 0;
+    right: auto;
+    min-width: 200px; /* Or as needed */
+    background-color: var(--m3-surface-container-highest);
+}
+.m3-menu-item {
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    height: 48px;
+    color: var(--m3-on-surface-variant);
+    cursor: pointer;
+}
+.m3-menu-item:hover {
+    background-color: rgba(0,0,0,0.08);
 }
 
 /* Dropdown Menu for actions */

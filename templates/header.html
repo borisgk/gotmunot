@@ -21,12 +21,14 @@
 				<button id="selection-main-action" class="main-action">
 					<span id="selection-count">0 selected</span>
 				</button>
-				<button id="selection-menu-trigger" class="dropdown-trigger icon-button">
+				<button id="selection-menu-button" class="dropdown-trigger icon-button" aria-haspopup="true" aria-expanded="false" aria-controls="selection-menu">
 					<span class="material-symbols-outlined">arrow_drop_down</span>
 				</button>
-				<ul id="selection-menu" class="m3-menu">
-					<li><a href="#" id="add-to-album-action">Add to album...</a></li>
-					<li><a href="#" id="batch-change-date-action">Change date...</a></li>
+				<ul class="m3-menu" id="selection-menu" role="menu" aria-labelledby="selection-menu-button">
+					<li class="m3-menu-item" role="menuitem" tabindex="-1" id="add-to-album-item">
+						Add to album...
+					</li>
+					<!-- Other items can be added here -->
 				</ul>
 			</div>
 		</div>
