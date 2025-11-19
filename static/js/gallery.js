@@ -1,34 +1,29 @@
 // Wait for the DOM to be fully loaded before running scripts
+
+let snackbarTimeout;
+/**
+ * Shows a Material Design 3 snackbar with a message.
+ * @param {string} message The message to display.
+ */
+function showSnackbar(message) {
+    const snackbar = document.getElementById('m3-snackbar');
+    const label = snackbar.querySelector('.m3-snackbar-label');
+    if (!snackbar || !label) return;
+
+    clearTimeout(snackbarTimeout);
+    label.textContent = message;
+    snackbar.classList.add('show');
+    snackbarTimeout = setTimeout(() => snackbar.classList.remove('show'), 5000);
+}
+
 document.addEventListener('DOMContentLoaded', (event) => {
 
-    // Get the modal
+    // Get all modals at the top level of the DOMContentLoaded listener
     const lightbox = document.getElementById("lightbox");
-    if (lightbox) {
-        const lightboxImg = document.getElementById("lightbox-img");
-        const closeBtn = lightbox.querySelector(".close");
-
-        // When the user clicks on <span> (x), close the modal
-        closeBtn.onclick = function() {
-            lightbox.style.display = "none";
-        }
-    }
-
-    /* Info Modal Logic */
     const infoModal = document.getElementById("info-modal");
-    const infoModalBody = document.getElementById("info-modal-body");
-    const infoModalCloseBtn = infoModal.querySelector(".close");
-
-    infoModalCloseBtn.onclick = function() {
-        infoModal.style.display = "none";
-    }
-    window.onclick = function(event) {
-        if (event.target == infoModal) {
-            infoModal.style.display = "none";
-        }
-    }
+    const changeDateModal = document.getElementById('change-date-modal');
 
     /* --- Change Date Modal Logic --- */
-    const changeDateModal = document.getElementById('change-date-modal');
     if (changeDateModal) {
         const changeDateModalCloseBtn = changeDateModal.querySelector('.close');
         const changeDateCancelBtn = document.getElementById('change-date-cancel-btn');
@@ -143,16 +138,15 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
 
         const closeAddToAlbumModal = () => {
-            addToAlbumModal.style.display = 'none';
+            addToAlbumModal.classList.remove('show');
         };
 
-        closeBtn.onclick = closeAddToAlbumModal;
         cancelBtn.onclick = closeAddToAlbumModal;
 
         // Expose a global function to open the modal and populate it
         window.openAddToAlbumModal = async function() {
             await populateAlbumSelect();
-            addToAlbumModal.style.display = 'block';
+            addToAlbumModal.classList.add('show');
             albumSelect.focus(); // For better UX
         };
 
@@ -184,7 +178,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 }
 
                 const result = await response.json();
-                alert(`${result.photos_added} new photo(s) added to the album.`);
+                showSnackbar(`${result.photos_added} new photo(s) added to the album.`);
                 closeAddToAlbumModal();
                 document.getElementById('clear-selection-btn').click(); // Clear selection
             } catch (error) {
@@ -296,17 +290,8 @@ document.addEventListener('DOMContentLoaded', (event) => {
         updateSelectionBar();
     });
 
-    /* Dropdown Menu Logic */
+    // Consolidated click handler for the entire document
     document.addEventListener('click', function(event) {
-        // Close any open per-photo dropdowns if the click was not on their menu button
-        if (!event.target.matches('.photo-menu-btn')) {
-            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
-        }
-
-        // When the user clicks anywhere on the lightbox background, close it
-        if (event.target === lightbox) {
-            lightbox.style.display = "none";
-        }
 
         // Handle lightbox trigger clicks
         if (event.target.closest('.lightbox-trigger')) {
@@ -348,6 +333,25 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     }
                 })
                 .catch(error => console.error('Error checking preview URL:', error));
+        }
+
+        // Close lightbox by clicking the 'x' or the background
+        if (lightbox) {
+            if (event.target === lightbox || event.target.matches('#lightbox .close')) {
+                lightbox.style.display = "none";
+            }
+        }
+
+        // Close info modal
+        if (infoModal) {
+            if (event.target === infoModal || event.target.matches('#info-modal .close')) {
+                infoModal.style.display = "none";
+            }
+        }
+
+        // Close any open per-photo dropdowns if the click was not on their menu button
+        if (!event.target.matches('.photo-menu-btn')) {
+            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
         }
 
         // Handle menu button clicks

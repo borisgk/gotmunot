@@ -85,7 +85,7 @@
 }
 
 /* Lightbox Modal Styles */
-.modal {
+.modal, .lightbox-modal {
     display: none; /* Hidden by default */
     position: fixed; /* Stay in place */
     z-index: 1000; /* Sit on top */
@@ -98,7 +98,7 @@
     background-color: rgba(0,0,0,0.9); /* Black w/ opacity */
 }
 
-.modal-content {
+.modal-content, .lightbox-content {
     margin: auto;
     display: block;
     width: 100vw; /* Full viewport width */

@@ -8,6 +8,9 @@
     --m3-on-surface-variant: #49454f;
     --m3-primary: #0052A4; /* A strong, classic blue */
     --m3-surface-container-highest: #e9ecef; /* A slightly darker gray for context/menus */
+    --m3-inverse-surface: #313033;
+    --m3-inverse-on-surface: #F4EFF4;
+    --m3-inverse-primary: #95C8FF;
     --m3-menu-shadow: 0px 2px 6px 2px rgba(0,0,0,0.15), 0px 1px 2px 0px rgba(0,0,0,0.3);
 }
 

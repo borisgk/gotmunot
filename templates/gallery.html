@@ -11,6 +11,8 @@
 	<link rel="stylesheet" href="/static/css/common.css">
 	<link rel="stylesheet" href="/static/css/app-bar.css">
 	<link rel="stylesheet" href="/static/css/navigation-rail.css">
+	<link rel="stylesheet" href="/static/css/dialog.css">
+	<link rel="stylesheet" href="/static/css/snackbar.css">
 	<link rel="stylesheet" href="/static/css/gallery.css">
 	<script src="/static/js/app-bar.js" defer></script>
 	<script src="/static/js/task-poller.js"></script>
@@ -32,6 +34,11 @@
 	</div>
 	<!-- Include all modals -->
 	{{template "gallery_modals"}}
+
+	<!-- M3 Snackbar -->
+	<div id="m3-snackbar" class="m3-snackbar">
+		<span class="m3-snackbar-label"></span>
+	</div>
 
 	{{if .ShowPreview}}
 	<script>

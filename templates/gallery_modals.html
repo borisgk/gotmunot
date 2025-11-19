@@ -1,97 +1,103 @@
 {{define "gallery_modals"}}
 
-	<!-- The Lightbox Modal -->
-	<div id="lightbox" class="modal">
-		<span class="close">&times;</span>
-		<img class="modal-content" id="lightbox-img">
-	</div>
+<!-- Lightbox Modal -->
+<div id="lightbox" class="lightbox-modal">
+    <span class="close">&times;</span>
+    <img class="lightbox-content" id="lightbox-img">
+</div>
 
-	<!-- The Info Modal -->
-	<div id="info-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<div id="info-modal-body"></div>
-		</div>
-	</div>
+<!-- Info Modal -->
+<div id="info-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div id="info-modal-body"></div>
+    </div>
+</div>
 
-	<!-- The Change Date Modal -->
-	<div id="change-date-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<h3>Change Photo Date</h3>
-			<p>Current date: <strong id="current-date-display"></strong></p>
-			<form id="change-date-form">
-				<input type="hidden" id="change-date-filename">
-				<label for="new-date-input">New date and time:</label>
-				<input type="datetime-local" id="new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
-				<div style="margin-top: 1.5em; text-align: right;">
-					<button type="button" id="change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
-					<button type="submit" id="change-date-ok-btn">OK</button>
-				</div>
-			</form>
-		</div>
-	</div>
+<!-- Change Date Modal -->
+<div id="change-date-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>Change Photo Date</h3>
+        <p>Current date: <span id="current-date-display"></span></p>
+        <form id="change-date-form">
+            <input type="hidden" id="change-date-filename">
+            <label for="new-date-input">New date and time:</label>
+            <input type="datetime-local" id="new-date-input" name="new_date" required>
+            <div class="modal-actions">
+                <button type="button" id="change-date-cancel-btn">Cancel</button>
+                <button type="submit">Save</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-	<!-- The Batch Change Date Modal -->
-	<div id="batch-change-date-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<h3>Batch Change Date</h3>
-			<p>Set the starting date and time for the first selected photo. Each subsequent photo's time will be incremented by one minute.</p>
-			<form id="batch-change-date-form">
-				<label for="batch-new-date-input">New starting date and time:</label>
-				<input type="datetime-local" id="batch-new-date-input" name="new-date" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;">
-				<div style="margin-top: 1.5em; text-align: right;">
-					<button type="button" id="batch-change-date-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
-					<button type="submit" id="batch-change-date-ok-btn">OK</button>
-				</div>
-			</form>
-		</div>
-	</div>
+<!-- Batch Change Date Modal -->
+<div id="batch-change-date-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h3>Batch Change Date</h3>
+        <p>Set the date and time for the first photo. Subsequent photos will be incremented by one minute.</p>
+        <form id="batch-change-date-form">
+            <label for="batch-new-date-input">Start date and time:</label>
+            <input type="datetime-local" id="batch-new-date-input" name="new_date" required>
+            <div class="modal-actions">
+                <button type="button" id="batch-change-date-cancel-btn">Cancel</button>
+                <button type="submit">Start</button>
+            </div>
+        </form>
+    </div>
+</div>
 
-	<!-- The Progress Modal -->
-	<div id="progress-modal" class="info-modal">
-		<div class="info-modal-content">
-			<h3 id="progress-title">Processing...</h3>
-			<p id="progress-text"></p>
-			<div class="progress-bar-container">
-				<div id="progress-bar" class="progress-bar"></div>
-			</div>
-			<button id="progress-cancel-btn" class="cancel-btn">Cancel</button>
-		</div>
-	</div>
+<!-- M3 "Add to Album" Dialog -->
+<div id="add-to-album-modal" class="m3-dialog-scrim">
+    <div class="m3-dialog" role="dialog" aria-labelledby="add-to-album-headline">
+        <form id="add-to-album-form">
+            <!-- Headline -->
+            <div class="m3-dialog-headline" id="add-to-album-headline">Add to album</div>
 
-	<!-- The Login Modal -->
-	<div id="login-modal" class="info-modal">
-		<div class="info-modal-content">
-			<h3>Session Expired</h3>
-			<p>Your session has expired. Please log in again to continue.</p>
-			<form id="modal-login-form">
-				<label for="modal-username">Username:</label><br>
-				<input type="text" id="modal-username" name="username" required><br>
-				<label for="modal-password">Password:</label><br>
-				<input type="password" id="modal-password" name="password" required><br><br>
-				<input type="submit" value="Login">
-			</form>
-			<p id="login-modal-error" style="color: red;"></p>
-		</div>
-	</div>
+            <!-- Content -->
+            <div class="m3-dialog-content">
+                <label for="album-select" class="m3-dialog-supporting-text">Select an album to add the selected photos to.</label>
+                <select id="album-select" class="m3-select" required>
+                    <!-- Options will be populated by JS -->
+                </select>
+            </div>
 
-	<!-- The Add to Album Modal -->
-	<div id="add-to-album-modal" class="info-modal">
-		<div class="info-modal-content">
-			<span class="close">&times;</span>
-			<h3>Add to Album</h3>
-			<p>Select an album to add the selected photos to.</p>
-			<form id="add-to-album-form">
-				<label for="album-select">Album:</label>
-				<select id="album-select" name="album" required style="width: 100%; padding: 8px; box-sizing: border-box; margin-top: 5px;"></select>
-				<div style="margin-top: 1.5em; text-align: right;">
-					<button type="submit" id="add-to-album-ok-btn">Add</button>
-					<button type="button" id="add-to-album-cancel-btn" class="cancel-btn" style="background-color: #6c757d;">Cancel</button>
-				</div>
-			</form>
-		</div>
-	</div>
+            <!-- Actions -->
+            <div class="m3-dialog-actions">
+                <button type="button" class="m3-button" id="add-to-album-cancel-btn">Cancel</button>
+                <button type="submit" class="m3-button">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div id="progress-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="progress-title">Processing...</h3>
+        <p id="progress-text">Please wait.</p>
+        <div class="progress-bar-container">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="modal-actions">
+            <button id="progress-cancel-btn">Cancel</button>
+        </div>
+    </div>
+</div>
+
+<!-- Login Modal (inside gallery for re-authentication) -->
+<div id="login-modal" class="modal">
+    <div class="modal-content">
+        <h3>Session Expired</h3>
+        <p>Please log in again to continue.</p>
+        <form id="modal-login-form">
+            <!-- Login form fields can be added here if needed, or just a button -->
+            <p id="login-modal-error" style="color: red;"></p>
+            <button type="submit" class="m3-button">Login</button>
+        </form>
+    </div>
+</div>
 
 {{end}}

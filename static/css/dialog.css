@@ -1,0 +1,96 @@
+/* /home/ubuntu/go/src/tm25/static/css/dialog.css */
+
+/* Using CSS variables for easier theming based on M3 specs */
+:root {
+    --m3-dialog-scrim-color: rgba(0, 0, 0, 0.32);
+    --m3-dialog-background: var(--m3-surface-container-highest, #e9ecef);
+    --m3-dialog-headline-color: var(--m3-on-surface, #1d1b20);
+    --m3-dialog-supporting-text-color: var(--m3-on-surface-variant, #49454f);
+    --m3-dialog-action-color: var(--m3-primary, #0052A4);
+    --m3-dialog-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.3), 0px 2px 6px 2px rgba(0, 0, 0, 0.15);
+}
+
+.m3-dialog-scrim {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 200;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--m3-dialog-scrim-color);
+    /* Flexbox to center the dialog */
+    justify-content: center;
+    align-items: center;
+}
+
+/* When the modal is shown via JS, it becomes a flex container */
+.m3-dialog-scrim.show {
+    display: flex;
+}
+
+.m3-dialog {
+    background-color: var(--m3-dialog-background);
+    border-radius: 28px;
+    box-shadow: var(--m3-dialog-shadow);
+    padding: 24px;
+    width: 90%;
+    max-width: 560px; /* M3 spec for max width */
+    display: flex;
+    flex-direction: column;
+}
+
+.m3-dialog-headline {
+    font-family: 'Roboto', sans-serif;
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 32px;
+    color: var(--m3-dialog-headline-color);
+    margin-bottom: 16px;
+}
+
+.m3-dialog-content {
+    margin-bottom: 24px;
+}
+
+.m3-dialog-supporting-text {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    line-height: 20px;
+    color: var(--m3-dialog-supporting-text-color);
+    display: block;
+    margin-bottom: 16px;
+}
+
+.m3-select {
+    width: 100%;
+    padding: 12px;
+    border-radius: 4px;
+    border: 1px solid var(--m3-on-surface-variant);
+    font-size: 16px;
+    background-color: transparent;
+}
+
+.m3-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.m3-button {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--m3-dialog-action-color);
+    background-color: transparent;
+    border: none;
+    border-radius: 20px; /* Fully rounded for text buttons */
+    padding: 10px 24px;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: background-color 0.2s;
+}
+
+.m3-button:hover {
+    background-color: rgba(0, 82, 164, 0.08); /* Primary color with low opacity */
+}
