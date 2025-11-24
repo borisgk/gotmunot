@@ -4,6 +4,22 @@
 <div id="lightbox" class="lightbox-modal">
     <span class="close">&times;</span>
     <img class="lightbox-content" id="lightbox-img">
+
+    <!-- Floating Toolbar -->
+    <div class="lightbox-toolbar">
+        <button id="lightbox-info-btn" class="icon-button" title="Info">
+            <span class="material-symbols-outlined">info</span>
+        </button>
+        <button id="lightbox-download-btn" class="icon-button" title="Download">
+            <span class="material-symbols-outlined">download</span>
+        </button>
+        <button id="lightbox-delete-btn" class="icon-button" title="Delete">
+            <span class="material-symbols-outlined">delete</span>
+        </button>
+        <button id="lightbox-close-btn" class="icon-button" title="Close">
+            <span class="material-symbols-outlined">close</span>
+        </button>
+    </div>
 </div>
 
 <!-- Info Modal -->
@@ -58,7 +74,8 @@
 
             <!-- Content -->
             <div class="m3-dialog-content">
-                <label for="album-select" class="m3-dialog-supporting-text">Select an album to add the selected photos to.</label>
+                <label for="album-select" class="m3-dialog-supporting-text">Select an album to add the selected photos
+                    to.</label>
                 <select id="album-select" class="m3-select" required>
                     <!-- Options will be populated by JS -->
                 </select>
