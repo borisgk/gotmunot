@@ -63,9 +63,16 @@ class Lightbox {
         });
 
         // Close on Escape key
+        // Keyboard navigation
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && this.isOpen()) {
+            if (!this.isOpen()) return;
+
+            if (e.key === 'Escape') {
                 this.close();
+            } else if (e.key === 'ArrowLeft') {
+                this.prev();
+            } else if (e.key === 'ArrowRight') {
+                this.next();
             }
         });
     }
@@ -75,6 +82,9 @@ class Lightbox {
     }
 
     async open(url) {
+        this.triggers = Array.from(document.querySelectorAll('.lightbox-trigger'));
+        this.currentIndex = this.triggers.findIndex(t => t.dataset.preview === url);
+
         // Check for auth before showing (logic moved from gallery.js)
         try {
             const response = await fetch(url, { redirect: 'manual' });
@@ -94,6 +104,15 @@ class Lightbox {
     }
 
     close() {
+        // Scroll to the last viewed image before closing
+        if (this.triggers && this.currentIndex >= 0 && this.currentIndex < this.triggers.length) {
+            const currentTrigger = this.triggers[this.currentIndex];
+            const photoItem = currentTrigger.closest('.photo-item');
+            if (photoItem) {
+                photoItem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
         this.modal.style.display = 'none';
         this.image.src = ''; // Clear source
         this.currentImageUrl = '';
@@ -145,6 +164,20 @@ class Lightbox {
                     console.error('Error deleting photo:', error);
                     alert('Error deleting photo.');
                 });
+        }
+    }
+
+    next() {
+        if (this.triggers && this.currentIndex < this.triggers.length - 1) {
+            const nextTrigger = this.triggers[this.currentIndex + 1];
+            this.open(nextTrigger.dataset.preview);
+        }
+    }
+
+    prev() {
+        if (this.triggers && this.currentIndex > 0) {
+            const prevTrigger = this.triggers[this.currentIndex - 1];
+            this.open(prevTrigger.dataset.preview);
         }
     }
 }
