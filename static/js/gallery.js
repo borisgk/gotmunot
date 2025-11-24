@@ -19,9 +19,46 @@ function showSnackbar(message) {
 document.addEventListener('DOMContentLoaded', (event) => {
 
     // Get all modals at the top level of the DOMContentLoaded listener
-    const lightbox = document.getElementById("lightbox");
+    // Initialize Lightbox
+    const lightbox = new Lightbox("lightbox");
+
     const infoModal = document.getElementById("info-modal");
     const changeDateModal = document.getElementById('change-date-modal');
+
+    // Handle authentication required event
+    document.addEventListener('auth:required', () => {
+        const loginModal = document.getElementById('login-modal');
+        const loginForm = document.getElementById('modal-login-form');
+        const errorP = document.getElementById('login-modal-error');
+
+        if (!loginModal || !loginForm) return;
+
+        errorP.textContent = ''; // Clear previous errors
+        loginModal.style.display = 'block';
+
+        loginForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(loginForm);
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify(Object.fromEntries(formData)),
+                });
+                if (response.ok) {
+                    loginModal.style.display = 'none';
+                    // Optionally reload or retry the action
+                    window.location.reload();
+                } else {
+                    errorP.textContent = 'Login failed. Please try again.';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorP.textContent = 'An error occurred during login.';
+            }
+        };
+    });
 
     /* --- Change Date Modal Logic --- */
     if (changeDateModal) {
@@ -144,7 +181,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         cancelBtn.onclick = closeAddToAlbumModal;
 
         // Expose a global function to open the modal and populate it
-        window.openAddToAlbumModal = async function() {
+        window.openAddToAlbumModal = async function () {
             await populateAlbumSelect();
             addToAlbumModal.classList.add('show');
             albumSelect.focus(); // For better UX
@@ -208,7 +245,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
             if (!response.ok) throw new Error('Failed to start batch update process.');
 
             const { task_id } = await response.json();
-            
+
             // Poll for status using a generic polling function
             pollTaskStatus(task_id, {
                 onComplete: () => window.location.reload(),
@@ -245,7 +282,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
     }
 
     /* --- Selection & Action Bar Logic --- */
-    document.addEventListener('change', function(event) {
+    document.addEventListener('change', function (event) {
         if (event.target.matches('.photo-select-checkbox')) {
             const photoItem = event.target.closest('.photo-item');
             if (event.target.checked) {
@@ -277,7 +314,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
         }
     });
 
-    document.getElementById('clear-selection-btn').addEventListener('click', function(event) {
+    document.getElementById('clear-selection-btn').addEventListener('click', function (event) {
         event.preventDefault(); // Prevent link navigation
 
         // Find all checked boxes and un-check them
@@ -291,55 +328,13 @@ document.addEventListener('DOMContentLoaded', (event) => {
     });
 
     // Consolidated click handler for the entire document
-    document.addEventListener('click', function(event) {
+    document.addEventListener('click', function (event) {
 
         // Handle lightbox trigger clicks
         if (event.target.closest('.lightbox-trigger')) {
             event.preventDefault();
             const previewUrl = event.target.closest('.lightbox-trigger').dataset.preview;
-
-            // Fetch the image first to check for redirects (e.g., to login page)
-            fetch(previewUrl, { redirect: 'manual' }) // Important: 'manual' prevents auto-following redirects
-                .then(response => {
-                    // A response type of 'opaqueredirect' indicates a cross-origin redirect,
-                    // which we can't inspect further. A 401 status is a clearer signal.
-                    if (response.status === 401) {
-                        // The session has expired. Show the login modal.
-                        const loginModal = document.getElementById('login-modal');
-                        const loginForm = document.getElementById('modal-login-form');
-                        const errorP = document.getElementById('login-modal-error');
-                        errorP.textContent = ''; // Clear previous errors
-                        loginModal.style.display = 'block';
-
-                        loginForm.onsubmit = async (e) => {
-                            e.preventDefault();
-                            const formData = new FormData(loginForm);
-                            const response = await fetch('/api/login', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                credentials: 'include', // Important: This tells fetch to handle cookies
-                                body: JSON.stringify(Object.fromEntries(formData)),
-                            });
-                            if (response.ok) {
-                                loginModal.style.display = 'none';
-                            } else {
-                                errorP.textContent = 'Login failed. Please try again.';
-                            }
-                        };
-                    } else {
-                        // If the response is OK, show the lightbox.
-                        lightbox.style.display = "block";
-                        lightbox.querySelector('#lightbox-img').src = previewUrl;
-                    }
-                })
-                .catch(error => console.error('Error checking preview URL:', error));
-        }
-
-        // Close lightbox by clicking the 'x' or the background
-        if (lightbox) {
-            if (event.target === lightbox || event.target.matches('#lightbox .close')) {
-                lightbox.style.display = "none";
-            }
+            lightbox.open(previewUrl);
         }
 
         // Close info modal
@@ -432,34 +427,34 @@ document.addEventListener('DOMContentLoaded', (event) => {
             event.preventDefault();
             const photoItem = event.target.closest('.photo-item');
             const filename = photoItem.querySelector('.photo-menu-btn').dataset.filename;
-            
+
             if (confirm(`Are you sure you want to delete "${filename}"? This cannot be undone.`)) {
                 fetch(`/api/photo/${filename}`, {
                     method: 'DELETE',
                 })
-                .then(response => {
-                    if (response.ok) {
-                        // If deletion is successful, remove the photo item from the DOM
-                        const gallery = photoItem.parentElement;
-                        photoItem.remove();
-                        updateTotalCounts(1);
+                    .then(response => {
+                        if (response.ok) {
+                            // If deletion is successful, remove the photo item from the DOM
+                            const gallery = photoItem.parentElement;
+                            photoItem.remove();
+                            updateTotalCounts(1);
 
-                        // Check if the gallery is now empty
-                        if (gallery && gallery.children.length === 0) {
-                            // If empty, remove the gallery and its corresponding date header
-                            const dateHeader = gallery.previousElementSibling;
-                            dateHeader?.remove();
-                            gallery.remove();
+                            // Check if the gallery is now empty
+                            if (gallery && gallery.children.length === 0) {
+                                // If empty, remove the gallery and its corresponding date header
+                                const dateHeader = gallery.previousElementSibling;
+                                dateHeader?.remove();
+                                gallery.remove();
+                            }
+                        } else {
+                            // If there was an error, alert the user
+                            alert(`Error deleting photo: ${response.statusText}`);
                         }
-                    } else {
-                        // If there was an error, alert the user
-                        alert(`Error deleting photo: ${response.statusText}`);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error during photo deletion:', error);
-                    alert('A network error occurred while trying to delete the photo.');
-                });
+                    })
+                    .catch(error => {
+                        console.error('Error during photo deletion:', error);
+                        alert('A network error occurred while trying to delete the photo.');
+                    });
             }
         }
     });
