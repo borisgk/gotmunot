@@ -26,11 +26,11 @@
             <button class="photo-menu-btn icon-button" data-filename="{{.Filename}}">
                 <span class="material-symbols-outlined">more_vert</span>
             </button>
-            <ul class="m3-menu dropdown-content">
-                <li class="m3-menu-item info-btn" role="menuitem" tabindex="-1">Info</li>
-                <li class="m3-menu-item change-date-btn" role="menuitem" tabindex="-1">Change date</li>
-                <li class="m3-menu-item delete-btn" role="menuitem" tabindex="-1">Delete</li>
-            </ul>
+            {{if eq $.CurrentPage "gallery"}}
+            {{template "context_menu_gallery" .}}
+            {{else}}
+            {{template "context_menu_album" .}}
+            {{end}}
         </div>
         {{end}}
     </div>

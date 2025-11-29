@@ -344,17 +344,26 @@ document.addEventListener('DOMContentLoaded', (event) => {
             }
         }
 
-        // Close any open per-photo dropdowns if the click was not on their menu button
-        if (!event.target.matches('.photo-menu-btn')) {
-            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
-        }
-
         // Handle menu button clicks
-        if (event.target.matches('.photo-menu-btn')) {
+        const menuBtn = event.target.closest('.photo-menu-btn');
+
+        if (menuBtn) {
             event.preventDefault();
-            // Find the dropdown content relative to the button
-            const dropdown = event.target.nextElementSibling;
-            dropdown.classList.toggle('show');
+            const dropdown = menuBtn.nextElementSibling;
+
+            // Close other open dropdowns
+            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => {
+                if (d !== dropdown) {
+                    d.classList.remove('show');
+                }
+            });
+
+            if (dropdown) {
+                dropdown.classList.toggle('show');
+            }
+        } else {
+            // Close any open per-photo dropdowns if the click was not on a menu button
+            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
         }
 
         // Handle "Info" button clicks
