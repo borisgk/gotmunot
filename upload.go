@@ -296,3 +296,23 @@ func generatePreviewAndThumbnailBytes(originalImageBytes []byte) (previewBytes, 
 
 	return
 }
+
+func uploadPageHandler(w http.ResponseWriter, r *http.Request) {
+	username, ok := isValidSession(db, r)
+	if !ok {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+
+	data := struct {
+		Username    string
+		CurrentPage string
+	}{
+		Username:    username,
+		CurrentPage: "upload",
+	}
+	if err := tmpl.ExecuteTemplate(w, "upload.html", data); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
