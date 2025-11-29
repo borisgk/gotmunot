@@ -94,32 +94,9 @@ func Initialize() error {
 	}
 	log.Println("Users database WAL mode enabled.")
 
-	// Create the users table if it doesn't exist.
-	_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            uuid TEXT UNIQUE,
-            username TEXT UNIQUE,
-            password TEXT,
-            db_path TEXT
-        )
-    `)
-	if err != nil {
-		return fmt.Errorf("error creating users table: %w", err)
-	}
-
-	log.Println("Photos database initialized.")
-
-	// Create the sessions table if it doesn't exist.
-	_, err = db.Exec(`
-        CREATE TABLE IF NOT EXISTS sessions (
-            token TEXT PRIMARY KEY,
-            username TEXT,
-            expiry DATETIME
-        )
-    `)
-	if err != nil {
-		return fmt.Errorf("error creating sessions table: %w", err)
+	// Apply migrations to the main database
+	if err := ApplyMigrations(db, MainDBMigrations); err != nil {
+		return fmt.Errorf("error applying main DB migrations: %w", err)
 	}
 
 	// Add default users if they don't exist.
@@ -213,60 +190,9 @@ func openUserDB(dbPath string) (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to enable WAL mode on %s: %w", dbPath, err)
 	}
 
-	// Create the photos table, now without 'uploaded_by'.
-	_, err = userDB.Exec(`
-		CREATE TABLE IF NOT EXISTS photos (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			filename TEXT,
-			filepath TEXT UNIQUE,
-			uploaded_at DATETIME,
-			image_width INTEGER,
-			image_length INTEGER,
-			date_time DATETIME,
-			thumb_width INTEGER,
-			thumb_height INTEGER,
-			preview_width INTEGER,
-			preview_height INTEGER
-		)
-	`)
-	if err != nil {
-		return nil, err
+	// Apply migrations to the user database
+	if err := ApplyMigrations(userDB, UserDBMigrations); err != nil {
+		return nil, fmt.Errorf("error applying user DB migrations: %w", err)
 	}
-
-	// Create the albums table.
-	_, err = userDB.Exec(`
-		CREATE TABLE IF NOT EXISTS albums (
-			id INTEGER PRIMARY KEY AUTOINCREMENT,
-			name TEXT NOT NULL,
-			description TEXT,
-			created_at DATETIME NOT NULL,
-			cover_photo_id INTEGER,
-			FOREIGN KEY(cover_photo_id) REFERENCES photos(id) ON DELETE SET NULL
-		)
-	`)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the album_photos join table.
-	_, err = userDB.Exec(`
-		CREATE TABLE IF NOT EXISTS album_photos (
-			album_id INTEGER NOT NULL,
-			photo_id INTEGER NOT NULL,
-			PRIMARY KEY (album_id, photo_id),
-			FOREIGN KEY(album_id) REFERENCES albums(id) ON DELETE CASCADE,
-			FOREIGN KEY(photo_id) REFERENCES photos(id) ON DELETE CASCADE
-		)
-	`)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create the settings table.
-	_, err = userDB.Exec(`
-		CREATE TABLE IF NOT EXISTS settings (
-			name TEXT NOT NULL PRIMARY KEY,
-			value TEXT NOT NULL
-		)`)
-	return userDB, err
+	return userDB, nil
 }
