@@ -22,11 +22,16 @@
     </div>
 </div>
 
-<!-- Info Modal -->
-<div id="info-modal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <div id="info-modal-body"></div>
+<!-- Info Modal (M3 Dialog) -->
+<div id="info-modal" class="m3-dialog-scrim">
+    <div class="m3-dialog" role="dialog" aria-labelledby="info-modal-headline">
+        <div class="m3-dialog-headline" id="info-modal-headline">Photo Details</div>
+        <div class="m3-dialog-content" id="info-modal-body">
+            <!-- Content populated by JS -->
+        </div>
+        <div class="m3-dialog-actions">
+            <button class="m3-button" id="info-modal-close-btn">Close</button>
+        </div>
     </div>
 </div>
 

@@ -339,9 +339,14 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         // Close info modal
         if (infoModal) {
-            if (event.target === infoModal || event.target.matches('#info-modal .close')) {
-                infoModal.style.display = "none";
+            if (event.target === infoModal) {
+                infoModal.classList.remove('show');
             }
+        }
+
+        // Handle Info Modal Close Button
+        if (event.target.matches('#info-modal-close-btn')) {
+            if (infoModal) infoModal.classList.remove('show');
         }
 
         // Handle menu button clicks
@@ -402,12 +407,42 @@ document.addEventListener('DOMContentLoaded', (event) => {
                         row.insertCell(1).textContent = displayValue;
                     };
                     // Build the content
-                    infoModalBody.innerHTML = `<h3>${data.Filename}</h3>`;
+                    // Clear previous content
+                    infoModalBody.innerHTML = '';
+
                     const table = document.createElement('table');
-                    addRow(table, 'Date Taken', data.DateTime);
-                    addRow(table, 'Dimensions', `${data.ImageWidth} x ${data.ImageLength}`);
+                    table.style.width = '100%';
+                    table.style.borderCollapse = 'collapse';
+
+                    const addStyledRow = (label, value) => {
+                        const row = table.insertRow();
+                        const cell1 = row.insertCell(0);
+                        const cell2 = row.insertCell(1);
+
+                        cell1.innerHTML = `<strong>${label}</strong>`;
+                        cell1.style.padding = '8px 0';
+                        cell1.style.borderBottom = '1px solid #eee';
+                        cell1.style.color = 'var(--m3-on-surface-variant)';
+
+                        cell2.textContent = value;
+                        cell2.style.padding = '8px 0';
+                        cell2.style.borderBottom = '1px solid #eee';
+                        cell2.style.textAlign = 'right';
+                        cell2.style.color = 'var(--m3-on-surface)';
+                    };
+
+                    addStyledRow('Filename', data.Filename);
+                    addStyledRow('ID', data.ID);
+                    addStyledRow('Date Taken', data.DateTime ? new Date(data.DateTime).toLocaleString() : 'N/A');
+                    addStyledRow('Uploaded At', data.UploadedAt ? new Date(data.UploadedAt).toLocaleString() : 'N/A');
+                    addStyledRow('Original Size', `${data.ImageWidth} x ${data.ImageLength}`);
+                    addStyledRow('Preview Size', `${data.PreviewWidth} x ${data.PreviewHeight}`);
+                    addStyledRow('Thumbnail Size', `${data.ThumbWidth} x ${data.ThumbHeight}`);
+                    addStyledRow('File Path', data.Filepath);
+                    addStyledRow('Uploaded By', data.UploadedBy);
+
                     infoModalBody.appendChild(table);
-                    infoModal.style.display = "block";
+                    infoModal.classList.add('show');
                 } catch (error) {
                     console.error('Error fetching photo info:', error);
                     alert('Could not load photo information.');
