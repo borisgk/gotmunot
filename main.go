@@ -16,6 +16,11 @@ func main() {
 	// Defer vips shutdown until the application exits.
 	defer vips.Shutdown()
 
+	// Initialize the application (database, directories, etc.)
+	if err := Initialize(); err != nil {
+		log.Fatalf("Failed to initialize application: %v", err)
+	}
+
 	// Initialize and start the metadata saving queue and worker.
 	// A buffer of 100 can handle bursts of uploads.
 	photoMetadataQueue = make(chan *PhotoMetadata, 100)

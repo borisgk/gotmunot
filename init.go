@@ -23,7 +23,7 @@ var userDBs = struct {
 	connections map[string]*sql.DB
 }{connections: make(map[string]*sql.DB)}
 
-func init() {
+func Initialize() error {
 	fmt.Println("Initializing TM25...")
 
 	// Configure govips to be less verbose. Only log errors.
@@ -37,28 +37,28 @@ func init() {
 	if _, err := os.Stat("static"); os.IsNotExist(err) {
 		fmt.Println("Creating 'static' directory...")
 		if err := os.Mkdir("static", 0755); err != nil {
-			log.Fatalf("Error creating 'static' directory: %v", err)
+			return fmt.Errorf("error creating 'static' directory: %w", err)
 		}
 	}
 	// Create static/css directory if not exists
 	if _, err := os.Stat("static/css"); os.IsNotExist(err) {
 		fmt.Println("Creating 'static/css' directory...")
 		if err := os.MkdirAll("static/css", 0755); err != nil { // use MkdirAll for nested directories
-			log.Fatalf("Error creating 'static/css' directory: %v", err)
+			return fmt.Errorf("error creating 'static/css' directory: %w", err)
 		}
 	}
 	// Create static/js directory if not exists
 	if _, err := os.Stat("static/js"); os.IsNotExist(err) {
 		fmt.Println("Creating 'static/js' directory...")
 		if err := os.MkdirAll("static/js", 0755); err != nil {
-			log.Fatalf("Error creating 'static/js' directory: %v", err)
+			return fmt.Errorf("error creating 'static/js' directory: %w", err)
 		}
 	}
 	// Create the photo upload directory if it doesn't exist.
 	if _, err := os.Stat(AppConfig.PhotoUploadDir); os.IsNotExist(err) {
 		fmt.Printf("Creating '%s' directory...\n", AppConfig.PhotoUploadDir)
 		if err := os.MkdirAll(AppConfig.PhotoUploadDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", AppConfig.PhotoUploadDir, err)
+			return fmt.Errorf("error creating '%s' directory: %w", AppConfig.PhotoUploadDir, err)
 		}
 	}
 
@@ -66,7 +66,7 @@ func init() {
 	if _, err := os.Stat("templates"); os.IsNotExist(err) {
 		fmt.Println("Creating 'templates' directory...")
 		if err := os.Mkdir("templates", 0755); err != nil {
-			log.Fatalf("Error creating 'templates' directory: %v", err)
+			return fmt.Errorf("error creating 'templates' directory: %w", err)
 		}
 	}
 
@@ -74,7 +74,7 @@ func init() {
 	if _, err := os.Stat(AppConfig.DataDir); os.IsNotExist(err) {
 		fmt.Printf("Creating '%s' directory...\n", AppConfig.DataDir)
 		if err := os.Mkdir(AppConfig.DataDir, 0755); err != nil {
-			log.Fatalf("Error creating '%s' directory: %v", AppConfig.DataDir, err)
+			return fmt.Errorf("error creating '%s' directory: %w", AppConfig.DataDir, err)
 		}
 	}
 
@@ -84,13 +84,13 @@ func init() {
 	dbPath := filepath.Join(AppConfig.DataDir, "users.db?_busy_timeout=5000")
 	db, err = sql.Open("sqlite", dbPath)
 	if err != nil {
-		log.Fatalf("Error opening database: %v", err)
+		return fmt.Errorf("error opening database: %w", err)
 	}
 
 	// Enable Write-Ahead Logging for better concurrency.
 	_, err = db.Exec("PRAGMA journal_mode=WAL;")
 	if err != nil {
-		log.Fatalf("Error enabling WAL mode for users.db: %v", err)
+		return fmt.Errorf("error enabling WAL mode for users.db: %w", err)
 	}
 	log.Println("Users database WAL mode enabled.")
 
@@ -105,7 +105,7 @@ func init() {
         )
     `)
 	if err != nil {
-		log.Fatalf("Error creating users table: %v", err)
+		return fmt.Errorf("error creating users table: %w", err)
 	}
 
 	log.Println("Photos database initialized.")
@@ -119,7 +119,7 @@ func init() {
         )
     `)
 	if err != nil {
-		log.Fatalf("Error creating sessions table: %v", err)
+		return fmt.Errorf("error creating sessions table: %w", err)
 	}
 
 	// Add default users if they don't exist.
@@ -138,13 +138,13 @@ func init() {
 
 			_, err := db.Exec("INSERT INTO users (uuid, username, password, db_path) VALUES (?, ?, ?, ?)", userUUID, username, hashedPassword, dbPath)
 			if err != nil {
-				log.Fatalf("Error adding default user %s: %v", username, err)
+				return fmt.Errorf("error adding default user %s: %w", username, err)
 			}
 
 			// Create and initialize the user's personal database
 			userDB, err := openUserDB(dbPath)
 			if err != nil {
-				log.Fatalf("Could not create database for user %s: %v", username, err)
+				return fmt.Errorf("could not create database for user %s: %w", username, err)
 			}
 			userDB.Close() // Close connection after creation
 		}
@@ -153,8 +153,10 @@ func init() {
 	// Parse the templates
 	tmpl, err = template.ParseGlob("templates/*.html")
 	if err != nil {
-		log.Fatalf("Error parsing templates: %v", err)
+		return fmt.Errorf("error parsing templates: %w", err)
 	}
+
+	return nil
 }
 
 // getUserDB returns a database connection for a specific user.
