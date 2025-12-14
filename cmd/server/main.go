@@ -92,8 +92,8 @@ func main() {
 	// 10. Start Server
 	log.Println("Server processing photos at:", config.AppConfig.PhotoUploadDir)
 	log.Println("Server database at:", config.AppConfig.DataDir)
-	log.Println("Server starting on :8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	log.Println("Server starting on", config.AppConfig.Port, "...")
+	if err := http.ListenAndServe(config.AppConfig.Port, nil); err != nil {
 		log.Fatal(err)
 	}
 }

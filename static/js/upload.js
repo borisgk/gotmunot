@@ -113,14 +113,6 @@ uploadForm.addEventListener('submit', async (e) => {
         const itemInner = document.createElement('div');
         itemInner.className = 'upload-item-inner';
 
-        const thumb = document.createElement('img');
-        thumb.className = 'upload-item-thumb';
-
-        // Generate client-side thumbnail
-        const reader = new FileReader();
-        reader.onload = (e) => { thumb.src = e.target.result; };
-        reader.readAsDataURL(file);
-
         const progressWrapper = document.createElement('div');
         progressWrapper.style.flexGrow = '1';
 
@@ -135,7 +127,7 @@ uploadForm.addEventListener('submit', async (e) => {
         progressContainer.appendChild(progressBar);
 
         progressWrapper.append(itemLabel, progressContainer);
-        itemInner.append(thumb, progressWrapper);
+        itemInner.append(progressWrapper);
         itemDiv.appendChild(itemInner);
         uploadStatus.appendChild(itemDiv);
         fileElementMap.set(file, itemDiv);

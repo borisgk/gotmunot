@@ -10,6 +10,7 @@ import (
 
 // Config holds the application configuration.
 type Config struct {
+	Port           string `toml:"port"`
 	PhotoUploadDir string `toml:"photo_upload_dir"`
 	DataDir        string `toml:"data_dir"`
 }
@@ -22,6 +23,7 @@ var AppConfig Config
 func LoadConfig() {
 	// Set default configuration
 	AppConfig = Config{
+		Port:           ":9030",
 		PhotoUploadDir: "/data/tmunot",
 		DataDir:        "data",
 	}

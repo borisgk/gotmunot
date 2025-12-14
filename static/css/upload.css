@@ -1,13 +1,19 @@
 body {
     font-family: 'Open Sans', sans-serif;
-    padding-top: 80px; padding-left: 0; /* Space for app bar and nav rail */
+    padding-top: 80px;
+    padding-left: 0;
+    /* Space for app bar and nav rail */
 }
+
 .content-wrapper {
-    padding: 0 2em; /* Add horizontal padding */
+    padding: 0 2em;
+    /* Add horizontal padding */
 }
+
 .upload-item {
     margin-bottom: 0.5em;
 }
+
 .upload-item-inner {
     display: flex;
     align-items: center;
@@ -15,51 +21,37 @@ body {
     padding: 5px;
     border-bottom: 1px solid #eee;
 }
+
 .upload-item-label {
     display: block;
     margin-bottom: 4px;
     font-size: 0.9em;
 }
+
 .upload-item-placeholder {
     padding: 5px;
     font-size: 0.9em;
     color: #555;
     border-bottom: 1px solid #eee;
 }
-.upload-item-thumb {
-    width: 80px;
-    height: 80px;
-    object-fit: cover;
-    border-radius: 4px;
-    background-color: #f0f0f0;
-    flex-shrink: 0;
-}
+
 .progress-bar-container {
     width: 100%;
     background-color: #e0e0e0;
     border-radius: 4px;
     overflow: hidden;
 }
+
 .progress-bar {
     width: 0;
     height: 10px;
     background-color: #4caf50;
     transition: width 0.2s ease-in-out;
 }
-#thumbnail-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-top: 1em;
-}
-#thumbnail-grid img {
-    width: 100px;
-    height: 100px;
-    object-fit: cover;
-    border-radius: 4px;
-}
+
 #upload-status {
-    max-height: 50vh; /* 50% of the viewport height */
+    max-height: 50vh;
+    /* 50% of the viewport height */
     overflow-y: auto;
     border: 1px solid #ddd;
 }
