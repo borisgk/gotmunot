@@ -12,7 +12,7 @@ tmp_dir = "tmp"
 # -s: Omit the symbol table and debug information.
 # -w: Omit the DWARF symbol table.
 # This significantly reduces the size of the final executable.
-cmd = "go build -ldflags='-s -w' -o ./tmp/tm25 ."
+cmd = "go build -ldflags='-s -w' -o ./tmp/tm25 ./cmd/server"
 
 # The binary file that will be executed after a successful build.
 bin = "tmp/tm25"
