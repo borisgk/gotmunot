@@ -5,7 +5,6 @@ go 1.24.1
 require (
 	github.com/BurntSushi/toml v1.5.0
 	github.com/davidbyttow/govips/v2 v2.16.0
-	github.com/google/uuid v1.6.0
 	github.com/rwcarlsen/goexif v0.0.0-20190401172101-9e8deecbddbd
 	golang.org/x/crypto v0.36.0
 	modernc.org/sqlite v1.29.10
@@ -13,6 +12,7 @@ require (
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/ncruces/go-strftime v0.1.9 // indirect

@@ -6,7 +6,7 @@
 // - progress-bar
 // - progress-cancel-btn
 
-window.pollTaskStatus = function(taskId, { onComplete, onCancel } = {}) {
+window.pollTaskStatus = function (taskId, { onComplete, onCancel } = {}) {
     const progressModal = document.getElementById('progress-modal');
     const progressTitle = document.getElementById('progress-title');
     const progressText = document.getElementById('progress-text');
@@ -46,7 +46,8 @@ window.pollTaskStatus = function(taskId, { onComplete, onCancel } = {}) {
             }
         } catch (pollError) {
             clearInterval(pollInterval);
-            alert(`An error occurred: ${pollError.message}`);
+            console.error(`An error occurred: ${pollError.message}`);
+            progressText.textContent = `Error: ${pollError.message}`;
             progressModal.style.display = 'none';
         }
     }, 750);

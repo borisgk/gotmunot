@@ -14,13 +14,14 @@ function uploadFile(file, itemContainer, onCompleteCallback) {
         const itemLabel = itemContainer.querySelector('.upload-item-label');
         const progressBar = itemContainer.querySelector('.progress-bar');
 
-        const xhr = new XMLHttpRequest();
-
         itemLabel.textContent = `Uploading ${file.name}...`;
         // Scroll this item into view when its upload starts.
         itemContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         const startTime = performance.now(); // Record start time
+
+        // Use XMLHttpRequest for progress events (fetch doesn't support upload progress yet)
+        const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (event) => {
             if (event.lengthComputable) {
@@ -76,8 +77,14 @@ uploadForm.addEventListener('submit', async (e) => {
 
     const files = fileInput.files;
     if (files.length === 0) {
-        alert('Please select files to upload.');
-        return;
+        if (files.length === 0) {
+            const errorMsg = document.createElement('p');
+            errorMsg.style.color = 'red';
+            errorMsg.textContent = 'Please select files to upload.';
+            uploadStatus.innerHTML = '';
+            uploadStatus.appendChild(errorMsg);
+            return;
+        }
     }
     uploadedFilenames.length = 0; // Clear previous uploads
     uploadButton.disabled = true;

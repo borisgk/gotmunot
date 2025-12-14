@@ -102,7 +102,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                 window.location.reload();
 
             } catch (error) {
-                alert(error.message);
+                showSnackbar(error.message);
             }
         });
     }
@@ -365,10 +365,18 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
             if (dropdown) {
                 dropdown.classList.toggle('show');
+                if (dropdown.classList.contains('show')) {
+                    // Focus the first item
+                    const firstItem = dropdown.querySelector('.m3-menu-item');
+                    if (firstItem) firstItem.focus();
+                }
             }
         } else {
             // Close any open per-photo dropdowns if the click was not on a menu button
-            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
+            // But don't close if clicking inside the menu itself (handled by specific button clicks)
+            if (!event.target.closest('.dropdown-content')) {
+                document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => d.classList.remove('show'));
+            }
         }
 
         // Handle "Info" button clicks
@@ -445,7 +453,7 @@ document.addEventListener('DOMContentLoaded', (event) => {
                     infoModal.classList.add('show');
                 } catch (error) {
                     console.error('Error fetching photo info:', error);
-                    alert('Could not load photo information.');
+                    showSnackbar('Could not load photo information.');
                 }
             }
 
@@ -492,12 +500,12 @@ document.addEventListener('DOMContentLoaded', (event) => {
                             }
                         } else {
                             // If there was an error, alert the user
-                            alert(`Error deleting photo: ${response.statusText}`);
+                            showSnackbar(`Error deleting photo: ${response.statusText}`);
                         }
                     })
                     .catch(error => {
                         console.error('Error during photo deletion:', error);
-                        alert('A network error occurred while trying to delete the photo.');
+                        showSnackbar('A network error occurred while trying to delete the photo.');
                     });
             }
         }
@@ -551,7 +559,45 @@ document.addEventListener('DOMContentLoaded', (event) => {
 
         } catch (error) {
             console.error('Error opening change date modal:', error);
-            alert('Could not load photo information to change date.');
+            showSnackbar('Could not load photo information to change date.');
         }
     }
+
+    // Keyboard navigation for context menus
+    document.addEventListener('keydown', function (event) {
+        const activeElement = document.activeElement;
+        const isMenuItem = activeElement.classList.contains('m3-menu-item');
+        const dropdown = activeElement.closest('.dropdown-content');
+
+        if (isMenuItem && dropdown && dropdown.classList.contains('show')) {
+            const items = Array.from(dropdown.querySelectorAll('.m3-menu-item'));
+            const currentIndex = items.indexOf(activeElement);
+
+            if (event.key === 'ArrowDown') {
+                event.preventDefault();
+                const nextIndex = (currentIndex + 1) % items.length;
+                items[nextIndex].focus();
+            } else if (event.key === 'ArrowUp') {
+                event.preventDefault();
+                const prevIndex = (currentIndex - 1 + items.length) % items.length;
+                items[prevIndex].focus();
+            } else if (event.key === 'Escape') {
+                event.preventDefault();
+                dropdown.classList.remove('show');
+                // Return focus to the menu button
+                const menuBtn = dropdown.previousElementSibling;
+                if (menuBtn) menuBtn.focus();
+            } else if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                activeElement.click();
+            }
+        } else if (event.key === 'Escape') {
+            // Close any open dropdowns on global Escape
+            document.querySelectorAll('.photo-item .dropdown-content.show').forEach(d => {
+                d.classList.remove('show');
+                const menuBtn = d.previousElementSibling;
+                if (menuBtn) menuBtn.focus();
+            });
+        }
+    });
 });
