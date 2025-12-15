@@ -50,8 +50,62 @@ body {
 }
 
 #upload-status {
-    max-height: 50vh;
-    /* 50% of the viewport height */
-    overflow-y: auto;
+    /* Unlimited height as requested */
     border: 1px solid #ddd;
+}
+
+/* Global Progress Bar Styles */
+.global-progress-container {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 8px;
+    border: 1px solid #eee;
+}
+
+.global-progress-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    font-weight: 600;
+    color: #333;
+}
+
+.progress-bar-container.large {
+    height: 20px;
+    /* Larger than default */
+    background-color: #e9ecef;
+}
+
+.progress-bar-container.large .progress-bar {
+    height: 100%;
+}
+
+.upload-complete-message {
+    margin-top: 20px;
+    text-align: center;
+    color: #28a745;
+}
+
+/* Thumbnail Grid Styles */
+.thumbnail-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+}
+
+.thumbnail-item {
+    width: 150px;
+    height: 150px;
+    overflow: hidden;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.thumbnail-item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
 }

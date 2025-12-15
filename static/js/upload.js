@@ -3,64 +3,100 @@ const fileInput = document.getElementById('photo');
 const uploadButton = document.getElementById('uploadButton');
 const uploadStatus = document.getElementById('upload-status');
 const galleryButton = document.getElementById('galleryButton');
-const uploadedFilenames = []; // To store filenames for batch processing
+const uploadedFilenames = [];
 
-function uploadFile(file, itemContainer, onCompleteCallback) {
+// Global state for progress
+let totalBytes = 0;
+let loadedBytesMap = new Map(); // file -> bytesLoaded
+let activeFiles = new Set();
+
+function updateGlobalProgress() {
+    let totalLoaded = 0;
+    loadedBytesMap.forEach((loaded) => {
+        totalLoaded += loaded;
+    });
+
+    const percentComplete = totalBytes > 0 ? Math.round((totalLoaded / totalBytes) * 100) : 0;
+
+    // Update UI
+    const globalProgressBar = document.getElementById('global-progress-bar');
+    const globalProgressLabel = document.getElementById('global-progress-label');
+    const globalProgressText = document.getElementById('global-progress-text');
+
+    if (globalProgressBar) {
+        globalProgressBar.style.width = `${percentComplete}%`;
+    }
+
+    if (globalProgressLabel) {
+        if (activeFiles.size > 0) {
+            // Join all active filenames, perhaps truncated if too long? For now, just join them.
+            const filenames = Array.from(activeFiles).join(', ');
+            globalProgressLabel.textContent = `Uploading: ${filenames}`;
+        } else if (percentComplete >= 100) {
+            globalProgressLabel.textContent = "Processing...";
+        } else {
+            globalProgressLabel.textContent = "Waiting...";
+        }
+    }
+
+    if (globalProgressText) {
+        globalProgressText.textContent = `${percentComplete}%`;
+    }
+}
+
+function uploadFile(file, onProgress, onCompleteCallback) {
     return new Promise((resolve, reject) => {
         const formData = new FormData();
         formData.append('photo', file);
 
-        // Get the elements from the pre-populated container
-        const itemLabel = itemContainer.querySelector('.upload-item-label');
-        const progressBar = itemContainer.querySelector('.progress-bar');
-
-        itemLabel.textContent = `Uploading ${file.name}...`;
-        // Scroll this item into view when its upload starts.
-        itemContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-
-        const startTime = performance.now(); // Record start time
-
-        // Use XMLHttpRequest for progress events (fetch doesn't support upload progress yet)
         const xhr = new XMLHttpRequest();
 
         xhr.upload.addEventListener('progress', (event) => {
             if (event.lengthComputable) {
-                const percentComplete = Math.round((event.loaded / event.total) * 100);
-                progressBar.style.width = `${percentComplete}%`;
+                onProgress(event.loaded);
             }
         });
 
         xhr.addEventListener('load', () => {
-            const endTime = performance.now(); // Record end time
-            const duration = ((endTime - startTime) / 1000).toFixed(2); // Calculate duration in seconds
+            // Ensure we mark this file as fully loaded in our map
+            onProgress(file.size);
+
             if (xhr.status >= 200 && xhr.status < 300) {
                 try {
                     const result = JSON.parse(xhr.responseText);
                     if (result.status === 'success') {
-                        itemLabel.textContent = `✅ ${file.name} - Complete`;
-                        progressBar.style.backgroundColor = '#28a745'; // Success green
-                        uploadedFilenames.push(result.filename); // Collect filename
-                    } else {
-                        itemLabel.textContent = `❌ ${file.name} - Error: ${result.message}`;
-                        progressBar.style.backgroundColor = '#dc3545'; // Error red
+                        uploadedFilenames.push(result.filename);
+
+                        // Append thumbnail to grid
+                        if (result.thumbnail_url) {
+                            const grid = document.getElementById('thumbnail-grid');
+                            if (grid) {
+                                const imgContainer = document.createElement('div');
+                                imgContainer.className = 'thumbnail-item';
+
+                                const img = document.createElement('img');
+                                img.src = result.thumbnail_url;
+                                img.alt = result.filename;
+
+                                imgContainer.appendChild(img);
+                                grid.appendChild(imgContainer);
+                            }
+                        }
                     }
                 } catch (e) {
-                    itemLabel.textContent = `❌ ${file.name} - Error parsing server response.`;
-                    progressBar.style.backgroundColor = '#dc3545';
+                    console.error("Error parsing response", e);
                 }
-            } else {
-                itemLabel.textContent = `❌ ${file.name} - Server error: ${xhr.statusText}`;
-                progressBar.style.backgroundColor = '#dc3545';
             }
             if (onCompleteCallback) onCompleteCallback();
             resolve();
         });
 
         xhr.addEventListener('error', () => {
-            itemLabel.textContent = `❌ ${file.name} - Network or server error.`;
-            progressBar.style.backgroundColor = '#dc3545';
+            // Even on error, we might want to count it as "processed" for progress bar purposes 
+            // or handle it differently. For simplicity, we treat it as done.
+            onProgress(file.size);
             if (onCompleteCallback) onCompleteCallback();
-            resolve(); // Resolve so the next file can start
+            resolve();
         });
 
         xhr.open('POST', '/upload', true);
@@ -77,93 +113,106 @@ uploadForm.addEventListener('submit', async (e) => {
 
     const files = fileInput.files;
     if (files.length === 0) {
-        if (files.length === 0) {
-            const errorMsg = document.createElement('p');
-            errorMsg.style.color = 'red';
-            errorMsg.textContent = 'Please select files to upload.';
-            uploadStatus.innerHTML = '';
-            uploadStatus.appendChild(errorMsg);
-            return;
-        }
+        const errorMsg = document.createElement('p');
+        errorMsg.style.color = 'red';
+        errorMsg.textContent = 'Please select files to upload.';
+        uploadStatus.innerHTML = '';
+        uploadStatus.appendChild(errorMsg);
+        return;
     }
-    uploadedFilenames.length = 0; // Clear previous uploads
+
+    // Reset State
+    uploadedFilenames.length = 0;
     uploadButton.disabled = true;
     galleryButton.style.display = 'none';
+    loadedBytesMap.clear();
+    activeFiles.clear();
+    totalBytes = 0;
 
-    const totalFiles = files.length;
-    let completedCount = 0;
-    const progressHeading = document.createElement('h3');
-    const updateHeading = () => {
-        progressHeading.textContent = `Upload Progress (${completedCount}/${totalFiles})`;
-    };
-    updateHeading(); // Initial text
-    uploadStatus.innerHTML = ''; // Clear previous content
-    uploadStatus.appendChild(progressHeading);
-
-    const totalStartTime = performance.now();
-
-    // Create a map to hold file-to-element references
-    const fileElementMap = new Map();
-
-    // Pre-populate the UI with all filenames as placeholders
+    // Calculate total size
     for (const file of files) {
-        const itemDiv = document.createElement('div');
-        itemDiv.className = 'upload-item';
-
-        const itemInner = document.createElement('div');
-        itemInner.className = 'upload-item-inner';
-
-        const progressWrapper = document.createElement('div');
-        progressWrapper.style.flexGrow = '1';
-
-        const itemLabel = document.createElement('div');
-        itemLabel.className = 'upload-item-label';
-        itemLabel.textContent = file.name;
-
-        const progressContainer = document.createElement('div');
-        progressContainer.className = 'progress-bar-container';
-        const progressBar = document.createElement('div');
-        progressBar.className = 'progress-bar';
-        progressContainer.appendChild(progressBar);
-
-        progressWrapper.append(itemLabel, progressContainer);
-        itemInner.append(progressWrapper);
-        itemDiv.appendChild(itemInner);
-        uploadStatus.appendChild(itemDiv);
-        fileElementMap.set(file, itemDiv);
+        totalBytes += file.size;
+        loadedBytesMap.set(file, 0);
     }
 
-    // --- Concurrent upload with a limit ---
+    // Initialize UI
+    uploadStatus.innerHTML = `
+        <div class="global-progress-container">
+            <div class="global-progress-info">
+                <span id="global-progress-label">Preparing...</span>
+                <span id="global-progress-text">0%</span>
+            </div>
+            <div class="progress-bar-container large">
+                <div id="global-progress-bar" class="progress-bar"></div>
+            </div>
+        </div>
+        <div id="thumbnail-grid" class="thumbnail-grid"></div>
+    `;
+
+    const totalStartTime = performance.now();
+    let completedCount = 0;
+    const updateCount = () => {
+        // Optional: Update a counter if we want, but user asked for "name of file currently being reflected"
+        // which updateGlobalProgress handles.
+    };
+
+    // Concurrent upload logic
     const concurrencyLimit = 2;
-    const queue = [...files]; // Create a mutable copy of the files array
+    const queue = [...files];
 
     async function worker() {
         while (queue.length > 0) {
-            const file = queue.shift(); // Get the next file from the queue
-            await uploadFile(file, fileElementMap.get(file), () => {
+            const file = queue.shift();
+            // Start of upload for this file
+            activeFiles.add(file.name);
+            updateGlobalProgress();
+
+            await uploadFile(file, (loaded) => {
+                loadedBytesMap.set(file, loaded);
+                updateGlobalProgress();
+            }, () => {
                 completedCount++;
-                updateHeading();
             });
+            // End of upload for this file
+            activeFiles.delete(file.name);
+            updateGlobalProgress();
         }
     }
 
-    // Create and start the workers
     const workers = [];
     for (let i = 0; i < concurrencyLimit; i++) {
         workers.push(worker());
     }
 
-    await Promise.all(workers); // Wait for all workers to finish
+    await Promise.all(workers);
 
+    // Finalize
+    updateGlobalProgress(); // Should be cleared now
+
+    // Show final status
     const totalEndTime = performance.now();
     const totalDuration = ((totalEndTime - totalStartTime) / 1000).toFixed(2);
-    const totalTimeElement = document.createElement('p');
-    totalTimeElement.innerHTML = `<strong>Total upload time: ${totalDuration} seconds.</strong>`;
-    uploadStatus.appendChild(totalTimeElement);
+
+    const finalMessage = document.createElement('div');
+    finalMessage.className = 'upload-complete-message';
+    finalMessage.innerHTML = `
+        <h3>Upload Complete!</h3>
+        <p>Total time: ${totalDuration}s</p>
+    `;
+    uploadStatus.appendChild(finalMessage);
+
+    // Force 100% just in case
+    const bar = document.getElementById('global-progress-bar');
+    if (bar) bar.style.width = '100%';
+    const text = document.getElementById('global-progress-text');
+    if (text) text.textContent = '100%';
+    const label = document.getElementById('global-progress-label');
+    if (label) label.textContent = 'Done';
+
 
     uploadButton.disabled = false;
     if (uploadedFilenames.length > 0) {
         galleryButton.style.display = 'inline-block';
     }
-    fileInput.value = ''; // Clear the file input more reliably
+    fileInput.value = '';
 });

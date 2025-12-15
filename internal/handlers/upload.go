@@ -25,10 +25,11 @@ import (
 
 // Response struct for JSON responses
 type uploadResponse struct {
-	Status   string `json:"status"`
-	Message  string `json:"message"`
-	Filename string `json:"filename,omitempty"`
-	ExifRead bool   `json:"exifRead"`
+	Status       string `json:"status"`
+	Message      string `json:"message"`
+	Filename     string `json:"filename,omitempty"`
+	ThumbnailUrl string `json:"thumbnail_url,omitempty"`
+	ExifRead     bool   `json:"exifRead"`
 }
 
 func uploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -167,10 +168,11 @@ func uploadHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(uploadResponse{
-		Status:   "success",
-		Message:  "File uploaded successfully",
-		Filename: newFilename,
-		ExifRead: exifReadSuccessfully,
+		Status:       "success",
+		Message:      "File uploaded successfully",
+		Filename:     newFilename,
+		ThumbnailUrl: fmt.Sprintf("/media/%s/thumbs/%s", username, relativePath),
+		ExifRead:     exifReadSuccessfully,
 	})
 }
 
