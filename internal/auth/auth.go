@@ -39,20 +39,21 @@ func CheckPasswordHash(password, hash string) bool {
 // CreateSession creates a session in the database
 func CreateSession(db *sql.DB, token, username string) error {
 	expiry := time.Now().Add(sessionDuration)
-	_, err := db.Exec("INSERT INTO sessions (token, username, expiry) VALUES (?, ?, ?)", token, username, expiry)
+	_, err := db.Exec("INSERT INTO sessions (token, username, expiry) VALUES (?, ?, ?)", token, username, expiry.Unix())
 	return err
 }
 
 // GetSession retrieves a session from the database
 func GetSession(db *sql.DB, token string) (string, time.Time, error) {
 	var username string
-	var expiry time.Time
-	err := db.QueryRow("SELECT username, expiry FROM sessions WHERE token = ?", token).Scan(&username, &expiry)
+	var expiryUnix int64
+	err := db.QueryRow("SELECT username, expiry FROM sessions WHERE token = ?", token).Scan(&username, &expiryUnix)
 	if err != nil {
 		//if the session does not exist, or if an error occurs
 		return "", time.Time{}, err
 	}
 
+	expiry := time.Unix(expiryUnix, 0)
 	if time.Now().After(expiry) {
 		//if the session is expired
 		return "", time.Time{}, fmt.Errorf("session expired")
@@ -63,7 +64,7 @@ func GetSession(db *sql.DB, token string) (string, time.Time, error) {
 // ExtendSession extends a session's duration
 func ExtendSession(db *sql.DB, token string) error {
 	newExpiry := time.Now().Add(sessionDuration)
-	_, err := db.Exec("UPDATE sessions SET expiry = ? WHERE token = ?", newExpiry, token)
+	_, err := db.Exec("UPDATE sessions SET expiry = ? WHERE token = ?", newExpiry.Unix(), token)
 	if err != nil {
 		log.Printf("Error extending session: %v", err)
 	}

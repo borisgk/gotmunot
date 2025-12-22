@@ -72,6 +72,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 			Name:     "session_token",
 			Value:    sessionToken,
 			Expires:  time.Now().Add(auth.GetSessionDuration()),
+			Path:     "/",
 			HttpOnly: true, // Important for security
 		})
 
