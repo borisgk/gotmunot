@@ -30,7 +30,7 @@ func CreateAlbum(userDB *sql.DB, name, description string) (int64, error) {
 	}
 	defer stmt.Close()
 
-	result, err := stmt.Exec(name, description, time.Now())
+	result, err := stmt.Exec(name, description, time.Now().Format(SqliteTimeLayout))
 	if err != nil {
 		return 0, fmt.Errorf("failed to execute album insert: %w", err)
 	}
@@ -70,10 +70,12 @@ func GetAlbumsForUser(userDB *sql.DB, username string) ([]models.Album, error) {
 	for rows.Next() {
 		var album models.Album
 		var coverPhotoPath sql.NullString // Use sql.NullString to handle NULL cover photos
+		var createdAtStr string
 
-		if err := rows.Scan(&album.ID, &album.Name, &album.Description, &album.CreatedAt, &album.PhotoCount, &coverPhotoPath); err != nil {
+		if err := rows.Scan(&album.ID, &album.Name, &album.Description, &createdAtStr, &album.PhotoCount, &coverPhotoPath); err != nil {
 			return nil, fmt.Errorf("failed to scan album row: %w", err)
 		}
+		album.CreatedAt = parseFlexibleTime(createdAtStr)
 
 		// If a cover photo exists, construct its thumbnail URL. Otherwise, use a placeholder.
 		if coverPhotoPath.Valid && coverPhotoPath.String != "" {
@@ -209,11 +211,13 @@ func GetPhotosForAlbum(userDB *sql.DB, username string, albumID int64) ([]models
 			p.filename,
 			p.filepath,
 			p.uploaded_at,
-			p.date_time,
 			p.image_width,
 			p.image_length,
+			p.date_time,
 			p.thumb_width,
-			p.thumb_height
+			p.thumb_height,
+			p.preview_width,
+			p.preview_height
 		FROM
 			photos p
 		JOIN

@@ -49,7 +49,7 @@ func TestMediaHandlerDirectoryTraversal(t *testing.T) {
 
 	// Create a valid session for user1
 	token := "valid-token-user1"
-	_, err = db.Exec("INSERT INTO sessions (token, username, expiry) VALUES (?, ?, ?)", token, "user1", time.Now().Add(1*time.Hour))
+	_, err = db.Exec("INSERT INTO sessions (token, username, expiry) VALUES (?, ?, ?)", token, "user1", time.Now().Add(1*time.Hour).Unix())
 	if err != nil {
 		t.Fatalf("Failed to insert session: %v", err)
 	}

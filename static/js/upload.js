@@ -73,12 +73,7 @@ function uploadFile(file, onProgress, onCompleteCallback) {
                             if (grid) {
                                 const imgContainer = document.createElement('div');
                                 imgContainer.className = 'thumbnail-item';
-
-                                const img = document.createElement('img');
-                                img.src = result.thumbnail_url;
-                                img.alt = result.filename;
-
-                                imgContainer.appendChild(img);
+                                imgContainer.innerHTML = `<img src="${result.thumbnail_url}" alt="${result.filename}">`;
                                 grid.appendChild(imgContainer);
                             }
                         }

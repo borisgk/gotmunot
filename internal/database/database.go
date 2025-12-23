@@ -4,8 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"tm25/internal/config"
@@ -13,6 +15,8 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+const SqliteTimeLayout = "2006-01-02 15:04:05"
 
 // GetPhotos retrieves all photos for a user, with an optional year filter.
 func GetPhotos(userDB *sql.DB, username string, year int) ([]models.PhotoMetadata, error) {
@@ -139,8 +143,8 @@ func SavePhotoMetadata(userDB *sql.DB, p *models.PhotoMetadata) (int64, error) {
 	defer stmt.Close() // Close the statement when the function returns
 
 	result, err := stmt.Exec(
-		p.Filename, p.Filepath, p.UploadedAt,
-		p.ImageWidth, p.ImageLength, p.DateTime,
+		p.Filename, p.Filepath, p.UploadedAt.Format(SqliteTimeLayout),
+		p.ImageWidth, p.ImageLength, p.DateTime.Format(SqliteTimeLayout),
 		p.ThumbWidth, p.ThumbHeight, p.PreviewWidth, p.PreviewHeight,
 	)
 	if err != nil {
@@ -216,7 +220,7 @@ func UpdatePhotoDateAndPath(userDB *sql.DB, username, filename string, newDate t
 
 	// If the path hasn't changed, we only need to update the date in the DB.
 	if newRelativePath == photo.Filepath {
-		_, err := userDB.Exec("UPDATE photos SET date_time = ? WHERE filename = ?", newDate, filename)
+		_, err := userDB.Exec("UPDATE photos SET date_time = ? WHERE filename = ?", newDate.Format(SqliteTimeLayout), filename)
 		return err
 	}
 
@@ -245,7 +249,7 @@ func UpdatePhotoDateAndPath(userDB *sql.DB, username, filename string, newDate t
 		return err
 	}
 	defer stmt.Close()
-	if _, err := stmt.Exec(newDate, newRelativePath, filename); err != nil {
+	if _, err := stmt.Exec(newDate.Format(SqliteTimeLayout), newRelativePath, filename); err != nil {
 		return err
 	}
 
@@ -281,11 +285,11 @@ func ScanPhoto(scanner interface{ Scan(...interface{}) error }, p *models.PhotoM
 	// Use sql.Null types for scanning to handle potential NULL values from the database.
 	var imageWidth, imageLength sql.NullInt64
 	var thumbWidth, thumbHeight, previewWidth, previewHeight sql.NullInt64
-	var dateTime sql.NullTime
+	var uploadedAtStr, dateTimeStr sql.NullString // Scan times as strings first
 
 	err := scanner.Scan(
-		&p.ID, &p.Filename, &p.Filepath, &p.UploadedAt,
-		&imageWidth, &imageLength, &dateTime, &thumbWidth, &thumbHeight,
+		&p.ID, &p.Filename, &p.Filepath, &uploadedAtStr,
+		&imageWidth, &imageLength, &dateTimeStr, &thumbWidth, &thumbHeight,
 		&previewWidth, &previewHeight,
 	)
 	if err != nil {
@@ -295,13 +299,46 @@ func ScanPhoto(scanner interface{ Scan(...interface{}) error }, p *models.PhotoM
 	// Assign values from sql.Null types to the struct, falling back to zero values if NULL.
 	p.ImageWidth = imageWidth.Int64
 	p.ImageLength = imageLength.Int64
-	p.DateTime = dateTime.Time
 	p.ThumbWidth = int(thumbWidth.Int64)
 	p.ThumbHeight = int(thumbHeight.Int64)
 	p.PreviewWidth = int(previewWidth.Int64)
 	p.PreviewHeight = int(previewHeight.Int64)
 
+	// Parse times
+	if uploadedAtStr.Valid && uploadedAtStr.String != "" {
+		p.UploadedAt = parseFlexibleTime(uploadedAtStr.String)
+	}
+	if dateTimeStr.Valid && dateTimeStr.String != "" {
+		p.DateTime = parseFlexibleTime(dateTimeStr.String)
+	}
+
 	return nil
+}
+
+// parseFlexibleTime attempts to parse a time string using multiple common formats.
+func parseFlexibleTime(s string) time.Time {
+	// Strip monotonic clock part if present (Go String() format)
+	if i := strings.Index(s, " m="); i != -1 {
+		s = s[:i]
+	}
+
+	formats := []string{
+		SqliteTimeLayout,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999 -0700 MST", // Go String()
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02T15:04:05",
+	}
+
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return t
+		}
+	}
+
+	// If all else fails, log it and return zero time (Standard behavior)
+	log.Printf("WARNING: Could not parse time string: %s", s)
+	return time.Time{}
 }
 
 // GetPhotoDateString returns the date part of a photo's most relevant timestamp.

@@ -117,6 +117,91 @@ var UserDBMigrations = []Migration{
 			return nil
 		},
 	},
+	{
+		Version:     2,
+		Description: "Normalize date formats in photos and albums",
+		Up: func(tx *sql.Tx) error {
+			// Normalize photos table
+			rows, err := tx.Query("SELECT id, uploaded_at, date_time FROM photos")
+			if err != nil {
+				return err
+			}
+			defer rows.Close()
+
+			type photoUpdate struct {
+				id         int
+				uploadedAt string
+				dateTime   string
+			}
+			var updates []photoUpdate
+
+			for rows.Next() {
+				var id int
+				var uploadedAt, dateTime sql.NullString
+				if err := rows.Scan(&id, &uploadedAt, &dateTime); err != nil {
+					return err
+				}
+
+				newUploadedAt := ""
+				if uploadedAt.Valid {
+					newUploadedAt = parseFlexibleTime(uploadedAt.String).Format(SqliteTimeLayout)
+				}
+
+				newDateTime := ""
+				if dateTime.Valid {
+					newDateTime = parseFlexibleTime(dateTime.String).Format(SqliteTimeLayout)
+				}
+
+				if (uploadedAt.Valid && newUploadedAt != uploadedAt.String) || (dateTime.Valid && newDateTime != dateTime.String) {
+					updates = append(updates, photoUpdate{id, newUploadedAt, newDateTime})
+				}
+			}
+			rows.Close()
+
+			for _, u := range updates {
+				_, err := tx.Exec("UPDATE photos SET uploaded_at = ?, date_time = ? WHERE id = ?", u.uploadedAt, u.dateTime, u.id)
+				if err != nil {
+					return err
+				}
+			}
+
+			// Normalize albums table
+			arows, err := tx.Query("SELECT id, created_at FROM albums")
+			if err != nil {
+				return err
+			}
+			defer arows.Close()
+
+			type albumUpdate struct {
+				id        int
+				createdAt string
+			}
+			var aupdates []albumUpdate
+
+			for arows.Next() {
+				var id int
+				var createdAt string
+				if err := arows.Scan(&id, &createdAt); err != nil {
+					return err
+				}
+
+				newCreatedAt := parseFlexibleTime(createdAt).Format(SqliteTimeLayout)
+				if newCreatedAt != createdAt {
+					aupdates = append(aupdates, albumUpdate{id, newCreatedAt})
+				}
+			}
+			arows.Close()
+
+			for _, u := range aupdates {
+				_, err := tx.Exec("UPDATE albums SET created_at = ? WHERE id = ?", u.createdAt, u.id)
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		},
+	},
 }
 
 // ApplyMigrations applies the given migrations to the database.
