@@ -1,35 +1,50 @@
 /* /home/ubuntu/go/src/tm25/static/css/navigation-rail.css */
 
 :root {
-    --m3-nav-rail-background: var(--m3-app-bar-background); /* Surface Container */
+    --m3-nav-rail-background: var(--m3-app-bar-background);
+    /* Surface Container */
     --m3-nav-rail-width-collapsed: 80px;
-    --m3-nav-rail-indicator-color: #e8def8; /* Secondary Container */
+    --m3-nav-rail-indicator-color: #e8def8;
+    /* Secondary Container */
     --m3-nav-rail-icon-color: var(--m3-on-surface-variant);
-    --m3-nav-rail-icon-color-active: #21005d; /* On Secondary Container */
+    --m3-nav-rail-icon-color-active: #21005d;
+    /* On Secondary Container */
     --m3-nav-rail-label-color: var(--m3-on-surface-variant);
 }
 
 .m3-nav-rail {
     position: fixed;
-    top: 64px; /* Start below the 64px app bar */
+    top: 64px;
+    /* Start below the app bar on mobile */
     left: 0;
     bottom: 0;
     width: var(--m3-nav-rail-width-collapsed);
     background-color: var(--m3-nav-rail-background);
     display: flex;
     flex-direction: column;
-    align-items: center; /* Align content to the center of the rail */
-    padding-top: 24px; /* Add some space from the top of the rail */
-    z-index: 100; /* Below app bar, above content */
-    transform: translateX(-100%); /* Hidden by default */
+    align-items: center;
+    padding-top: 12px;
+    z-index: 120;
+    transform: translateX(-100%);
     transition: transform 0.2s ease-in-out;
+}
+
+/* On desktop, it is always visible and the app bar starts after it */
+@media (min-width: 840px) {
+    .m3-nav-rail {
+        transform: translateX(0);
+        top: 0;
+        padding-top: 48px;
+        z-index: 100;
+    }
 }
 
 .m3-nav-rail-destinations {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px; /* Space between destinations */
+    gap: 12px;
+    /* Space between destinations */
     width: 100%;
 }
 
@@ -69,6 +84,7 @@
 .m3-nav-rail-destination.active .icon-container {
     background-color: var(--m3-nav-rail-indicator-color);
 }
+
 .m3-nav-rail-destination.active .icon-container .material-symbols-outlined {
     color: var(--m3-nav-rail-icon-color-active);
 }
